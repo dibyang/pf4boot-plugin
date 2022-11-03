@@ -16,7 +16,7 @@ import java.nio.file.Files;
 import static org.junit.Assert.assertTrue;
 
 /**
- * A simple functional test for the 'pf4boot.plugin.greeting' plugin.
+ * A simple functional test for the 'net.xdob.pf4boot-plugin' plugin.
  */
 public class Pf4bootPluginFunctionalTest {
   @Test
@@ -28,7 +28,7 @@ public class Pf4bootPluginFunctionalTest {
     writeString(new File(projectDir, "build.gradle"),
         "plugins {\n" +
             "  id('java')\n" +
-            "  id('pf4boot-plugin')\n" +
+            "  id('net.xdob.pf4boot-plugin')\n" +
             "}\n");
 
     writeString(new File(projectDir, "plugin.properties"),
@@ -55,7 +55,7 @@ public class Pf4bootPluginFunctionalTest {
     writeString(new File(projectDir, "build.gradle"),
         "plugins {\n" +
             "  id('java')\n" +
-            "  id('pf4boot-plugin')\n" +
+            "  id('net.xdob.pf4boot-plugin')\n" +
             "}\n" +
             "pf4bootPlugin { id='test-plugin2' }");
 
