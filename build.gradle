@@ -107,6 +107,8 @@ artifacts {
     archives javadocJar, sourcesJar
 }
 
+afterReleaseBuild.dependsOn uploadArchives
+
 uploadArchives {
     repositories {
         mavenDeployer {
