@@ -2,3 +2,5 @@
 /.gradle/
 /.idea/
 /signing.properties
+/.gitattributes
+/build/
