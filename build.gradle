@@ -1,0 +1,153 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        maven { url 'https://maven.aliyun.com/repository/public/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.researchgate:gradle-release:2.6.0'
+    }
+    //skip Test tasks
+    gradle.taskGraph.whenReady {
+        tasks.each { task ->
+            if (task.name.contains("test")) {
+                task.enabled = false
+            }
+        }
+    }
+}
+
+
+apply plugin: 'java-gradle-plugin'
+apply plugin: 'maven'
+apply plugin: 'signing'
+apply plugin: 'net.researchgate.release'
+
+group 'net.xdob.pf4boot'
+
+sourceCompatibility = project.jdkVersion
+targetCompatibility = project.jdkVersion
+
+
+repositories {
+    // Use jcenter for resolving dependencies.
+    // You can declare any Maven/Ivy/file repository here.
+    //jcenter()
+    mavenLocal()
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+}
+
+dependencies {
+    // Use JUnit test framework for unit tests
+    testImplementation 'junit:junit:4.12'
+}
+
+gradlePlugin {
+    // Define the plugin
+    plugins {
+        pf4bootplugin {
+            id = 'pf4boot-plugin'
+            implementationClass = 'net.xdob.pf4boot.Pf4bootPlugin'
+        }
+    }
+}
+
+// Add a source set for the functional test suite
+sourceSets {
+    functionalTest {
+    }
+}
+
+gradlePlugin.testSourceSets(sourceSets.functionalTest)
+configurations.functionalTestImplementation.extendsFrom(configurations.testImplementation)
+
+// Add a task to run the functional tests
+task functionalTest(type: Test) {
+    testClassesDirs = sourceSets.functionalTest.output.classesDirs
+    classpath = sourceSets.functionalTest.runtimeClasspath
+}
+
+check {
+    // Run the functional tests as part of `check`
+    dependsOn(tasks.functionalTest)
+}
+
+//对于典型的 Java 项目，您可以添加一个javadocJar以及一个 sourcesJar任务
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+// javadoc 配置，这里是自定义了 java doc 的一些配置
+javadoc {
+    description = "Generates project-level javadoc for use in -javadoc jar"
+
+    options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PROTECTED
+    options.author = true
+    options.version = true
+    options.header = project.name
+    options.addStringOption('Xdoclint:none', '-quiet')
+
+    // suppress warnings due to cross-module @see and @link references;
+    // note that global 'api' task does display all warnings.
+    logging.captureStandardError LogLevel.INFO
+    logging.captureStandardOutput LogLevel.INFO // suppress "## warnings" message
+    options.encoding = "UTF-8"  //编码一定要配置否则直接出错
+    options.charSet = 'UTF-8'
+}
+
+// 并将它们与项目 jar 本身一起连接到 artifacts 集合中：
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: findProperty("ossrhUsername")?:"", password: findProperty("ossrhPassword")?:"")
+            }
+
+            snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: findProperty("ossrhUsername")?:"", password: findProperty("ossrhPassword")?:"")
+            }
+
+            pom.project {
+                name 'pf4boot-plugin'
+                packaging 'jar'
+                // optionally artifactId can be defined here
+                description "pf4j插件开发的gradle插件"
+                url 'https://github.com/dibyang/pf4boot-plugin'
+
+                scm {
+                    connection 'scm:git:https://github.com/dibyang/pf4boot-plugin.git'
+                    developerConnection 'scm:git:https://github.com/dibyang/pf4boot-plugin.git'
+                    url 'https://github.com/dibyang/pf4boot.git'
+                }
+
+                licenses {
+                    license {
+                        name 'GNU Lesser General Public License v3.0'
+                        url 'https://www.gnu.org/licenses/lgpl.html'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'yangzj'
+                        name 'Yang zhijian'
+                        email '3227817@qq.com'
+                    }
+                }
+            }
+        }
+    }
+}
