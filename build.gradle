@@ -28,6 +28,29 @@ group 'net.xdob.pf4boot'
 sourceCompatibility = project.jdkVersion
 targetCompatibility = project.jdkVersion
 
+/**
+ * signing.properties 文件内容示例如下
+ * signing.keyId=xx
+ * signing.password=xxx
+ * signing.secretKeyRingFile=C:/Users/admin/.gnupg/**_SECRET.gpg
+ *
+ * ossrhUsername=xx
+ * ossrhPassword=xxx
+ */
+File signing_cfg = new File("$project.rootDir/signing.properties")
+if(signing_cfg.exists()) {
+    Properties props = new Properties()
+    props.load(new FileInputStream(signing_cfg))
+    props.each { prop ->
+        project.ext.set(prop.key, prop.value)
+    }
+
+    // 将构建的包签名
+    signing {
+        sign configurations.archives
+    }
+}
+
 
 repositories {
     // Use jcenter for resolving dependencies.
@@ -106,6 +129,8 @@ javadoc {
 artifacts {
     archives javadocJar, sourcesJar
 }
+
+
 
 afterReleaseBuild.dependsOn uploadArchives
 
