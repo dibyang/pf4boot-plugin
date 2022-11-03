@@ -10,11 +10,11 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath "net.xdob.pf4boot:pf4boot-plugin:0.2.0"
+    classpath "net.xdob.pf4boot:pf4boot-plugin:0.3.0"
   }
 }
 
-apply plugin: 'pf4boot-plugin'
+apply plugin: 'net.xdob.pf4boot-plugin'
 ```
 ## 插件配置支持两种方式,任选其一即可
 1. 模块根目录添加plugin.properties配置
