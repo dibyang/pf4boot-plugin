@@ -37,7 +37,7 @@ public class Pf4bootPluginFunctionalTest {
     GradleRunner runner = GradleRunner.create();
     runner.forwardOutput();
     runner.withPluginClasspath();
-    runner.withArguments("buildPf4bootPlugin");
+    runner.withArguments("pf4boot");
     runner.withProjectDir(projectDir);
     BuildResult result = runner.build();
 
@@ -63,7 +63,7 @@ public class Pf4bootPluginFunctionalTest {
     GradleRunner runner = GradleRunner.create();
     runner.forwardOutput();
     runner.withPluginClasspath();
-    runner.withArguments("buildPf4bootPlugin");
+    runner.withArguments("pf4boot");
     runner.withProjectDir(projectDir);
     BuildResult result = runner.build();
 
