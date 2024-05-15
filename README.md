@@ -21,6 +21,7 @@ apply plugin: 'net.xdob.pf4boot-plugin'
 ```properties
 plugin.id=plugin1
 plugin.class=net.xdob.demo.plugin1.Plugin1Plugin
+plugin.version=0.1.0-SNAPSHOT
 plugin.provider=yangzj
 plugin.dependencies=
 plugin.description=
