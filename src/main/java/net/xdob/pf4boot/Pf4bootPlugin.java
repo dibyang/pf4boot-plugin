@@ -51,9 +51,6 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     project.getPluginManager().apply(JavaPlugin.class);
 
 
-    Pf4bootPluginExtension pf4bootPlugin = project.getExtensions().create("pf4bootPlugin", Pf4bootPluginExtension.class);
-
-
     Configuration inline = project.getConfigurations().register("inline").getOrNull();
 
     Configuration compile = project.getConfigurations().getByName("compile");
@@ -73,17 +70,6 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
       }
     }
     project.afterEvaluate(p->{
-      if (pf4bootPlugin.getId().getOrNull()!=null) {
-        pluginProp.put(PropKeys.PLUGIN_ID, pf4bootPlugin.getId().getOrElse(""));
-        pluginProp.put(PropKeys.PLUGIN_CLASS, pf4bootPlugin.getPluginClass().getOrElse(""));
-        pluginProp.put(PropKeys.PLUGIN_VERSION, pf4bootPlugin.getVersion().getOrElse(""));
-        pluginProp.put(PropKeys.PLUGIN_PROVIDER, pf4bootPlugin.getProvider().getOrElse(""));
-        pluginProp.put(PropKeys.PLUGIN_DESCRIPTION, pf4bootPlugin.getDescription().getOrElse(""));
-        pluginProp.put(PropKeys.PLUGIN_DEPENDENCIES, pf4bootPlugin.getDependencies().getOrElse(""));
-        pluginProp.put(PropKeys.PLUGIN_REQUIRES, pf4bootPlugin.getRequires().getOrElse(""));
-        pluginProp.put(PropKeys.PLUGIN_LICENSE, pf4bootPlugin.getLicense().getOrElse(""));
-
-      }
       if (pluginProp.containsKey(PropKeys.PLUGIN_ID)) {
         configureArchivesAndComponent(project, pluginProp, inline);
       }
