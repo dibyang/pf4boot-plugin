@@ -1,35 +1,23 @@
 package net.xdob.pf4boot;
 
 
-import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.*;
+import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ConfigurationPublications;
+import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
-import org.gradle.api.component.AdhocComponentWithVariants;
 import org.gradle.api.component.SoftwareComponentFactory;
-import org.gradle.api.file.FileCollection;
 import org.gradle.api.internal.artifacts.ArtifactAttributes;
 import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact;
-import org.gradle.api.internal.component.BuildableJavaComponent;
-import org.gradle.api.internal.component.ComponentRegistry;
 import org.gradle.api.internal.plugins.DefaultArtifactPublicationSet;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.BasePlugin;
-import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginConvention;
-import org.gradle.api.plugins.internal.JavaConfigurationVariantMapping;
-import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.Copy;
-import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.bundling.Zip;
-import org.gradle.api.tasks.bundling.ZipEntryCompression;
-import org.gradle.internal.cleanup.BuildOutputCleanupRegistry;
-import org.gradle.language.jvm.tasks.ProcessResources;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -38,8 +26,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Properties;
 
 /**
  * pf4boot plugin.
@@ -89,11 +76,13 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
       if (pf4bootPlugin.getId().getOrNull()!=null) {
         pluginProp.put(PropKeys.PLUGIN_ID, pf4bootPlugin.getId().getOrElse(""));
         pluginProp.put(PropKeys.PLUGIN_CLASS, pf4bootPlugin.getPluginClass().getOrElse(""));
+        pluginProp.put(PropKeys.PLUGIN_VERSION, pf4bootPlugin.getVersion().getOrElse(""));
         pluginProp.put(PropKeys.PLUGIN_PROVIDER, pf4bootPlugin.getProvider().getOrElse(""));
         pluginProp.put(PropKeys.PLUGIN_DESCRIPTION, pf4bootPlugin.getDescription().getOrElse(""));
         pluginProp.put(PropKeys.PLUGIN_DEPENDENCIES, pf4bootPlugin.getDependencies().getOrElse(""));
         pluginProp.put(PropKeys.PLUGIN_REQUIRES, pf4bootPlugin.getRequires().getOrElse(""));
         pluginProp.put(PropKeys.PLUGIN_LICENSE, pf4bootPlugin.getLicense().getOrElse(""));
+
       }
       if (pluginProp.containsKey(PropKeys.PLUGIN_ID)) {
         configureArchivesAndComponent(project, pluginProp, inline);

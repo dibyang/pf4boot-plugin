@@ -7,6 +7,8 @@ interface Pf4bootPluginExtension {
 
   Property<String> getPluginClass();
 
+  Property<String> getVersion();
+
   Property<String> getDescription();
 
   Property<String> getProvider();
