@@ -153,11 +153,11 @@ afterReleaseBuild.dependsOn publishMavenJavaPublicationToMavenRepository
 publishing {
     publications {
         mavenJava(MavenPublication) {
-//            groupId = project.group
-//            artifactId = project.name
-//            version = project.version
+            groupId = project.group
+            artifactId = project.name
+            version = project.version
             //如果不定义，则会按照以上默认值执行
-            //from components.java
+            from components.java
 
             pom {
                 name = 'pf4boot-plugin'
