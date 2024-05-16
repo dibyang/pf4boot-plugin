@@ -22,7 +22,7 @@ plugins{
 }
 
 apply plugin: 'java-gradle-plugin'
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 apply plugin: 'signing'
 apply plugin: 'net.researchgate.release'
 
@@ -149,51 +149,120 @@ artifacts {
 
 
 
-afterReleaseBuild.dependsOn uploadArchives
+//afterReleaseBuild.dependsOn uploadArchives
+//
+//uploadArchives {
+//    repositories {
+//        mavenDeployer {
+//            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+//
+//            repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
+//                authentication(userName: findProperty("ossrhUsername")?:"", password: findProperty("ossrhPassword")?:"")
+//            }
+//
+//            snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
+//                authentication(userName: findProperty("ossrhUsername")?:"", password: findProperty("ossrhPassword")?:"")
+//            }
+//
+//            pom.project {
+//                name 'pf4boot-plugin'
+//                packaging 'jar'
+//                // optionally artifactId can be defined here
+//                description "pf4boot插件开发的gradle插件"
+//                url 'https://github.com/dibyang/pf4boot-plugin'
+//
+//                scm {
+//                    connection 'scm:git:https://github.com/dibyang/pf4boot-plugin.git'
+//                    developerConnection 'scm:git:https://github.com/dibyang/pf4boot-plugin.git'
+//                    url 'https://github.com/dibyang/pf4boot.git'
+//                }
+//
+//                licenses {
+//                    license {
+//                        name 'GNU Lesser General Public License v3.0'
+//                        url 'https://www.gnu.org/licenses/lgpl.html'
+//                    }
+//                }
+//
+//                developers {
+//                    developer {
+//                        id 'yangzj'
+//                        name 'Yang zhijian'
+//                        email '3227817@qq.com'
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
 
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+afterReleaseBuild.dependsOn publishing
 
-            repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                authentication(userName: findProperty("ossrhUsername")?:"", password: findProperty("ossrhPassword")?:"")
-            }
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = project.group
+            artifactId = project.name
+            version = project.version
+            //如果不定义，则会按照以上默认值执行
+            from components.java
 
-            snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
-                authentication(userName: findProperty("ossrhUsername")?:"", password: findProperty("ossrhPassword")?:"")
-            }
-
-            pom.project {
-                name 'pf4boot-plugin'
-                packaging 'jar'
-                // optionally artifactId can be defined here
-                description "pf4boot插件开发的gradle插件"
-                url 'https://github.com/dibyang/pf4boot-plugin'
-
-                scm {
-                    connection 'scm:git:https://github.com/dibyang/pf4boot-plugin.git'
-                    developerConnection 'scm:git:https://github.com/dibyang/pf4boot-plugin.git'
-                    url 'https://github.com/dibyang/pf4boot.git'
-                }
-
+            pom {
+                name = 'pf4boot-plugin'
+                description = "pf4boot插件开发的gradle插件"
+                url = 'https://github.com/dibyang/pf4boot-plugin'
                 licenses {
                     license {
-                        name 'GNU Lesser General Public License v3.0'
-                        url 'https://www.gnu.org/licenses/lgpl.html'
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
                     }
                 }
-
                 developers {
                     developer {
-                        id 'yangzj'
-                        name 'Yang zhijian'
-                        email '3227817@qq.com'
+                        id = 'yangzj'
+                        name = 'Yang zhijian'
+                        email = '3227817@qq.com'
                     }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/dibyang/pf4boot-plugin.git'
+                    developerConnection = 'scm:git:https://github.com/dibyang/pf4boot-plugin.git'
+                    url = 'https://github.com/dibyang/pf4boot-plugin.git'
+                }
+            }
+
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
                 }
             }
         }
     }
+    repositories {
+        maven {
+            // 发布仓库配置，这里基于version后缀是否为SNAPSHOT来区分发布到release库还是snapshots库
+            // def releasesRepoUrl = "http://nexus.cxzh.ltd:8081/repository/maven-releases/"
+            // def snapshotsRepoUrl = "http://nexus.cxzh.ltd:8081/repository/maven-snapshots/"
+
+            def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+            //认证用户和密码，在配置文件gradle.properties中配置
+            //oss-sonatype的登录用户名和密码
+            credentials {
+                username findProperty("ossrhUsername")?:""
+                password findProperty("ossrhPassword")?:""
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
 }
 
 pluginBundle {

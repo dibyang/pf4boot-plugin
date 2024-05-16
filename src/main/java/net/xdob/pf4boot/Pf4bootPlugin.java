@@ -54,8 +54,20 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
 
     Configuration inline = project.getConfigurations().register("inline").getOrNull();
 
-    Configuration compile = project.getConfigurations().getByName("compile");
-    compile.extendsFrom(inline);
+    try {
+      Configuration implementation = project.getConfigurations().getByName("implementation");
+      implementation.extendsFrom(inline);
+    }catch (UnknownConfigurationException e){
+      //ignore UnknownConfigurationException
+    }
+
+    try {
+      Configuration compile = project.getConfigurations().getByName("compile");
+      compile.extendsFrom(inline);
+    }catch (UnknownConfigurationException e){
+      //ignore UnknownConfigurationException
+    }
+
     try {
       Configuration api = project.getConfigurations().getByName("api");
       api.extendsFrom(inline);
@@ -120,7 +132,7 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
 
     PublishArtifact pf4bootArtifact = new LazyPublishArtifact(pf4boot);
     Configuration apiElementConfiguration = project.getConfigurations().getByName(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
-    Configuration runtimeConfiguration = project.getConfigurations().getByName(JavaPlugin.RUNTIME_CONFIGURATION_NAME);
+    Configuration runtimeConfiguration = project.getConfigurations().getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
     Configuration runtimeElementsConfiguration = project.getConfigurations().getByName(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME);
 
     project.getExtensions().getByType(DefaultArtifactPublicationSet.class).addCandidate(pf4bootArtifact);

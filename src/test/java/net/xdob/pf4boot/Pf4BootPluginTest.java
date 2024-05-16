@@ -31,9 +31,6 @@ public class Pf4BootPluginTest {
         // Verify the result
         Configuration inline = project.getConfigurations().findByName("inline");
         assertNotNull(inline);
-        Configuration compile = project.getConfigurations().findByName("compile");
-        assertNotNull(compile);
-        assertTrue(compile.getExtendsFrom().contains(inline));
 
         Configuration api = project.getConfigurations().findByName("api");
         assertNotNull(api);
