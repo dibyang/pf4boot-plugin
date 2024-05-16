@@ -6,6 +6,7 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationPublications;
 import org.gradle.api.artifacts.PublishArtifact;
+import org.gradle.api.artifacts.UnknownConfigurationException;
 import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
 import org.gradle.api.component.SoftwareComponentFactory;
 import org.gradle.api.internal.artifacts.ArtifactAttributes;
@@ -54,13 +55,12 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     Configuration inline = project.getConfigurations().register("inline").getOrNull();
 
     Configuration compile = project.getConfigurations().getByName("compile");
-    if(compile!=null){
-      compile.extendsFrom(inline);
-    }
-
-    Configuration api = project.getConfigurations().getByName("api");
-    if(api!=null){
+    compile.extendsFrom(inline);
+    try {
+      Configuration api = project.getConfigurations().getByName("api");
       api.extendsFrom(inline);
+    }catch (UnknownConfigurationException e){
+      //ignore UnknownConfigurationException
     }
 
     project.getConfigurations().register("plugin", plugin -> {
