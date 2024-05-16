@@ -54,7 +54,15 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     Configuration inline = project.getConfigurations().register("inline").getOrNull();
 
     Configuration compile = project.getConfigurations().getByName("compile");
-    compile.extendsFrom(inline);
+    if(compile!=null){
+      compile.extendsFrom(inline);
+    }
+
+    Configuration api = project.getConfigurations().getByName("api");
+    if(api!=null){
+      api.extendsFrom(inline);
+    }
+
     project.getConfigurations().register("plugin", plugin -> {
       plugin.setTransitive(false);
     });
