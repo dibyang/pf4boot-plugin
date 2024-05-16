@@ -147,9 +147,6 @@ artifacts {
     archives javadocJar, sourcesJar
 }
 
-
-afterReleaseBuild.dependsOn publishMavenJavaPublicationToMavenRepository
-
 publishing {
     publications {
         mavenJava(MavenPublication) {
@@ -213,6 +210,9 @@ publishing {
 signing {
     sign publishing.publications.mavenJava
 }
+
+afterReleaseBuild.dependsOn publishMavenJavaPublicationToMavenRepository
+
 
 pluginBundle {
     website = 'https://github.com/dibyang/pf4boot-plugin'
