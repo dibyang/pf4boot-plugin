@@ -1,14 +1,17 @@
 package net.xdob.pf4boot;
 
 
+import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationPublications;
 import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.artifacts.UnknownConfigurationException;
 import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
 import org.gradle.api.component.SoftwareComponentFactory;
+import org.gradle.api.file.CopySpec;
 import org.gradle.api.internal.artifacts.ArtifactAttributes;
 import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact;
 import org.gradle.api.internal.plugins.DefaultArtifactPublicationSet;
@@ -102,33 +105,47 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     final Jar jar = (Jar) project.getTasks().getByName("jar");
 
     // Register a task
-    TaskProvider<Zip> pf4boot = project.getTasks().register(PLUGIN_TASK_NAME, Zip.class, task -> {
-      task.dependsOn(jar);
-      task.setGroup(BasePlugin.BUILD_GROUP);
-      Path libs = project.getBuildDir().toPath().resolve("libs");
-      task.getDestinationDirectory().set(
-          project.file(libs.toFile()));
-      final Path plugin_prop_path = project.getBuildDir().toPath().resolve("tmp/plugin.properties");
-      task.from(plugin_prop_path);
-      task.into("lib", c -> {
-        c.from(inline);
-        c.from(libs.resolve(jar.getArchiveFileName().getOrElse("")));
-      });
-      task.doFirst(t -> {
-        pluginProp.put(PropKeys.PLUGIN_VERSION, project.getVersion());
-        try (OutputStream out = Files.newOutputStream(plugin_prop_path)) {
-          pluginProp.store(out, "Auto create for Pf4boot Plugin");
-        } catch (IOException e) {
-          //e.printStackTrace();
-        }
-      });
-      task.doLast(s -> {
-        String pluginId = pluginProp.getProperty(PropKeys.PLUGIN_ID);
-        if (pluginId != null) {
-          System.out.println("build pf4boot plugin for " + pluginId + ".");
-        }
-      });
-    });
+    TaskProvider<Zip> pf4boot = project.getTasks().register(PLUGIN_TASK_NAME, Zip.class, new Action<Zip>() {
+          @Override
+          public void execute(Zip zip) {
+            zip.dependsOn(jar);
+            zip.setGroup(BasePlugin.BUILD_GROUP);
+            Path libs = project.getBuildDir().toPath().resolve("libs");
+            zip.getDestinationDirectory().set(
+                project.file(libs.toFile()));
+            final Path plugin_prop_path = project.getBuildDir().toPath().resolve("tmp/plugin.properties");
+            zip.from(plugin_prop_path);
+            zip.into("lib", new Action<CopySpec>() {
+              @Override
+              public void execute(CopySpec c) {
+                c.from(inline);
+                c.from(libs.resolve(jar.getArchiveFileName().getOrElse("")));
+              }
+            });
+
+            zip.doFirst(new Action<Task>() {
+              @Override
+              public void execute(Task task) {
+                pluginProp.put(PropKeys.PLUGIN_VERSION, project.getVersion());
+                try (OutputStream out = Files.newOutputStream(plugin_prop_path)) {
+                  pluginProp.store(out, "Auto create for Pf4boot Plugin");
+                } catch (IOException e) {
+                  //e.printStackTrace();
+                }
+              }
+            });
+
+            zip.doLast(new Action<Task>() {
+              @Override
+              public void execute(Task task) {
+                String pluginId = pluginProp.getProperty(PropKeys.PLUGIN_ID);
+                if (pluginId != null) {
+                  System.out.println("build pf4boot plugin for " + pluginId + ".");
+                }
+              }
+            });
+          }
+        });
 
     PublishArtifact pf4bootArtifact = new LazyPublishArtifact(pf4boot);
     Configuration apiElementConfiguration = project.getConfigurations().getByName(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
