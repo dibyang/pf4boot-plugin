@@ -154,6 +154,11 @@ publishing {
             artifactId = project.name
             version = project.version
             //如果不定义，则会按照以上默认值执行
+            // 添加源码jar
+            artifact sourcesJar
+            // 添加javadocjar
+            artifact javadocJar
+            // 指定要发布的模块
             from components.java
 
             pom {
