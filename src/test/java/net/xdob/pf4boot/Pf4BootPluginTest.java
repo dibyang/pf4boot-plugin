@@ -16,10 +16,12 @@ public class Pf4BootPluginTest {
     @Test public void pluginRegistersATask() {
         // Create a test project and apply the plugin
         Project project = ProjectBuilder.builder().build();
+        project.getPlugins().apply("java-library");
         project.getPlugins().apply("net.xdob.pf4boot-plugin");
 
         // Verify the result
-        //assertNotNull(project.getTasks().findByName("buildPf4bootPlugin"));
+        assertNotNull(project.getTasks().findByName("pf4boot"));
+        assertNotNull(project.getExtensions().findByName("pf4bootPlugin"));
     }
 
     @Test public void pluginRegistersConfiguration() {
@@ -29,23 +31,18 @@ public class Pf4BootPluginTest {
         project.getPlugins().apply("net.xdob.pf4boot-plugin");
 
         // Verify the result
-        Configuration inline_api = project.getConfigurations().findByName("inline_api");
-        assertNotNull(inline_api);
-
         Configuration api = project.getConfigurations().findByName("api");
         assertNotNull(api);
-        assertTrue(api.getExtendsFrom().contains(inline_api));
+        Configuration bundle = project.getConfigurations().findByName("bundle");
+        assertNotNull(bundle);
 
-        Configuration inline_impl = project.getConfigurations().findByName("inline_impl");
-        assertNotNull(inline_impl);
-
-        Configuration implementation = project.getConfigurations().findByName("implementation");
-        assertNotNull(implementation);
-        assertTrue(implementation.getExtendsFrom().contains(inline_impl));
+        Configuration embed = project.getConfigurations().findByName("embed");
+        assertNotNull(embed);
+        assertTrue(api.getExtendsFrom().contains(embed));
 
         Configuration plugin = project.getConfigurations().findByName("plugin");
         assertNotNull(plugin);
-        assertFalse(plugin.isTransitive());
+
 
     }
 }

@@ -6,7 +6,6 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.*;
-import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
 import org.gradle.api.component.SoftwareComponentFactory;
 import org.gradle.api.file.CopySpec;
@@ -31,9 +30,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.Properties;
-import java.util.Set;
 
 /**
  * pf4boot plugin.
@@ -43,6 +40,7 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
   static final Logger LOG = LoggerFactory.getLogger(Pf4bootPlugin.class);
 
   private static final String PLUGIN_TASK_NAME = "pf4boot";
+  public static final String PF4BOOT_PLUGIN = "pf4bootPlugin";
 
   private final ObjectFactory objectFactory;
   private final SoftwareComponentFactory softwareComponentFactory;
@@ -106,8 +104,7 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
       p.setVisible(false);
     }).get();
 
-//    Configuration compileOnly = project.getConfigurations().getByName(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
-//    compileOnly.extendsFrom(pluginRef);
+
     Configuration compileOnlyApi = project.getConfigurations().getByName(JavaPlugin.COMPILE_ONLY_API_CONFIGURATION_NAME);
     compileOnlyApi.extendsFrom(plugin);
 
@@ -122,29 +119,9 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
         pluginProp.clear();
       }
     }
-    Pf4bootPluginExtension pf4bootPlugin = project.getExtensions().create("pf4bootPlugin", Pf4bootPluginExtension.class);
+    Pf4bootPluginExtension pf4bootPlugin = project.getExtensions().create(PF4BOOT_PLUGIN, Pf4bootPluginExtension.class);
 
-    project.afterEvaluate(p->{
-
-      setProperty(pluginProp, PropKeys.PLUGIN_ID, pf4bootPlugin.getId());
-      setProperty(pluginProp, PropKeys.PLUGIN_CLASS, pf4bootPlugin.getPluginClass());
-
-      setProperty(pluginProp, PropKeys.PLUGIN_PROVIDER, pf4bootPlugin.getProvider());
-      setProperty(pluginProp, PropKeys.PLUGIN_DESCRIPTION, pf4bootPlugin.getDescription());
-      setProperty(pluginProp, PropKeys.PLUGIN_DEPENDENCIES, pf4bootPlugin.getDependencies());
-      setProperty(pluginProp, PropKeys.PLUGIN_REQUIRES, pf4bootPlugin.getRequires());
-      setProperty(pluginProp, PropKeys.PLUGIN_LICENSE, pf4bootPlugin.getLicense());
-
-      if(isNullOrEmpty(pluginProp.getProperty(PropKeys.PLUGIN_VERSION))) {
-        Property<String> version = pf4bootPlugin.getVersion();
-        if(version.isPresent()){
-          pluginProp.put(PropKeys.PLUGIN_VERSION, version.get());
-        }else{
-          pluginProp.put(PropKeys.PLUGIN_VERSION, project.getVersion());
-        }
-      }
-      configureArchivesAndComponent(project, pluginProp, bundleOnly, embed);
-    });
+    configureArchivesAndComponent(project, pf4bootPlugin, pluginProp, bundleOnly, embed);
   }
 
   private boolean isNullOrEmpty(String s){
@@ -157,7 +134,8 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     }
   }
 
-  private void configureArchivesAndComponent(Project project, final Properties pluginProp,final Configuration... configs) {
+  private void configureArchivesAndComponent(Project project, final Pf4bootPluginExtension pf4bootPlugin,
+                                             final Properties pluginProp,final Configuration... configs) {
 
     final Jar jar = (Jar) project.getTasks().getByName("jar");
 
@@ -185,7 +163,10 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
             zip.doFirst(new Action<Task>() {
               @Override
               public void execute(Task task) {
-                pluginProp.put(PropKeys.PLUGIN_VERSION, project.getVersion());
+                handlePluginConfig(pf4bootPlugin, pluginProp);
+                if(isNullOrEmpty(pluginProp.getProperty(PropKeys.PLUGIN_VERSION))) {
+                  pluginProp.put(PropKeys.PLUGIN_VERSION, project.getVersion());
+                }
                 try (OutputStream out = Files.newOutputStream(plugin_prop_path)) {
                   pluginProp.store(out, "Auto create for Pf4boot Plugin");
                 } catch (IOException e) {
@@ -221,6 +202,25 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     addRuntimeVariants(project, runtimeElementsConfiguration, pf4bootArtifact);
 
     //registerSoftwareComponents(project);
+  }
+
+  private void handlePluginConfig( Pf4bootPluginExtension pf4bootPlugin, Properties pluginProp) {
+
+    setProperty(pluginProp, PropKeys.PLUGIN_ID, pf4bootPlugin.getId());
+    setProperty(pluginProp, PropKeys.PLUGIN_CLASS, pf4bootPlugin.getPluginClass());
+
+    setProperty(pluginProp, PropKeys.PLUGIN_PROVIDER, pf4bootPlugin.getProvider());
+    setProperty(pluginProp, PropKeys.PLUGIN_DESCRIPTION, pf4bootPlugin.getDescription());
+    setProperty(pluginProp, PropKeys.PLUGIN_DEPENDENCIES, pf4bootPlugin.getDependencies());
+    setProperty(pluginProp, PropKeys.PLUGIN_REQUIRES, pf4bootPlugin.getRequires());
+    setProperty(pluginProp, PropKeys.PLUGIN_LICENSE, pf4bootPlugin.getLicense());
+
+    if(isNullOrEmpty(pluginProp.getProperty(PropKeys.PLUGIN_VERSION))) {
+      Property<String> version = pf4bootPlugin.getVersion();
+      if(version.isPresent()){
+        pluginProp.put(PropKeys.PLUGIN_VERSION, version.get());
+      }
+    }
   }
 
 
