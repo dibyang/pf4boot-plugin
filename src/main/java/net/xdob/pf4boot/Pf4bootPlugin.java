@@ -15,6 +15,7 @@ import org.gradle.api.internal.plugins.DefaultArtifactPublicationSet;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.BasePlugin;
+import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.TaskProvider;
@@ -53,6 +54,7 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
 
   public void apply(ProjectInternal project) {
     project.getPluginManager().apply(JavaPlugin.class);
+    project.getPluginManager().apply(JavaLibraryPlugin.class);
     //project.getPluginManager().apply(JavaPlugin.class);
 
 
