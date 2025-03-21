@@ -17,9 +17,9 @@ buildscript {
 //    }
 }
 
-plugins{
-    id 'com.gradle.plugin-publish' version '1.0.0'
-}
+//plugins{
+//    id 'com.gradle.plugin-publish' version '1.0.0'
+//}
 
 apply plugin: 'java-gradle-plugin'
 apply plugin: 'maven-publish'
@@ -48,11 +48,6 @@ if(signing_cfg.exists()) {
     props.load(new FileInputStream(signing_cfg))
     props.each { prop ->
         project.ext.set(prop.key, prop.value)
-    }
-
-    // 将构建的包签名
-    signing {
-        sign configurations.archives
     }
 }
 
@@ -89,7 +84,7 @@ repositories {
 
 dependencies {
     // Use JUnit test framework for unit tests
-    testImplementation 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.13.1'
 }
 
 
@@ -119,7 +114,7 @@ task javadocJar(type: Jar) {
     from javadoc
 }
 
-task sourcesJar(type: Jar) {
+task sourceJar(type: Jar) {
     archiveClassifier = 'sources'
     from sourceSets.main.allSource
 }
@@ -144,18 +139,18 @@ javadoc {
 
 // 并将它们与项目 jar 本身一起连接到 artifacts 集合中：
 artifacts {
-    archives javadocJar, sourcesJar
+    archives javadocJar, sourceJar
 }
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        maven(MavenPublication) {
             groupId = project.group
             artifactId = project.name
             version = project.version
             //如果不定义，则会按照以上默认值执行
             // 添加源码jar
-            artifact sourcesJar
+            artifact sourceJar
             // 添加javadocjar
             artifact javadocJar
             // 指定要发布的模块
@@ -198,42 +193,47 @@ publishing {
     repositories {
         maven {
             // 发布仓库配置，这里基于version后缀是否为SNAPSHOT来区分发布到release库还是snapshots库
-            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
-            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-
-            //认证用户和密码，在配置文件中配置
-            //oss-sonatype的登录用户名和密码
-            credentials {
-                username findProperty("ossrhUsername")?:""
-                password findProperty("ossrhPassword")?:""
+            if(version.endsWith('SNAPSHOT')){
+                it.url = project.property("snapshotsRepository")
+            }else{
+                it.url = project.property("releasesRepository")
+            }
+            it.name = "deployment"
+            it.credentials {
+                it.username = project.property("ossrhUsername")
+                it.password = project.property("ossrhPassword")
             }
         }
     }
 }
 
 signing {
-    sign publishing.publications.mavenJava
+    sign publishing.publications.maven
 }
 
-afterReleaseBuild.dependsOn publishMavenJavaPublicationToMavenRepository
 
+if(project.getPlugins().contains("com.gradle.plugin-publish")){
+    pluginBundle {
+        website = 'https://github.com/dibyang/pf4boot-plugin'
+        vcsUrl = 'https://github.com/dibyang/pf4boot-plugin'
+        description = 'pf4boot插件开发的gradle插件' //插件描述
+        tags = ['pf4boot-plugin','pf4boot','tags'] //搜索关键词
 
-pluginBundle {
-    website = 'https://github.com/dibyang/pf4boot-plugin'
-    vcsUrl = 'https://github.com/dibyang/pf4boot-plugin'
-    description = 'pf4boot插件开发的gradle插件' //插件描述
-    tags = ['pf4boot-plugin','pf4boot','tags'] //搜索关键词
-
+    }
 }
 
 gradlePlugin {
     // Define the plugin
     plugins {
+        pf4boot {
+            id = 'net.xdob.pf4boot'
+            implementationClass = 'net.xdob.pf4boot.Pf4boot'
+            displayName = 'the gradle plugin for pf4boot application'
+        }
         pf4bootPlugin {
             id = 'net.xdob.pf4boot-plugin'
             implementationClass = 'net.xdob.pf4boot.Pf4bootPlugin'
-            displayName = 'pf4boot gradle plugin'
+            displayName = 'the gradle plugin for pf4boot plugin'
         }
     }
 }

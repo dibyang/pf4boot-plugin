@@ -29,12 +29,19 @@ public class Pf4BootPluginTest {
         project.getPlugins().apply("net.xdob.pf4boot-plugin");
 
         // Verify the result
-        Configuration inline = project.getConfigurations().findByName("inline");
-        assertNotNull(inline);
+        Configuration inline_api = project.getConfigurations().findByName("inline_api");
+        assertNotNull(inline_api);
 
         Configuration api = project.getConfigurations().findByName("api");
         assertNotNull(api);
-        assertTrue(api.getExtendsFrom().contains(inline));
+        assertTrue(api.getExtendsFrom().contains(inline_api));
+
+        Configuration inline_impl = project.getConfigurations().findByName("inline_impl");
+        assertNotNull(inline_impl);
+
+        Configuration implementation = project.getConfigurations().findByName("implementation");
+        assertNotNull(implementation);
+        assertTrue(implementation.getExtendsFrom().contains(inline_impl));
 
         Configuration plugin = project.getConfigurations().findByName("plugin");
         assertNotNull(plugin);

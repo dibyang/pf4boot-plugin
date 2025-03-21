@@ -46,6 +46,35 @@ public class Pf4bootPluginFunctionalTest {
 
   }
 
+  @Test
+  public void canRunTask4Ext() throws IOException {
+    // Setup the test build
+    File projectDir = new File("build/functionalTest");
+    Files.createDirectories(projectDir.toPath());
+    writeString(new File(projectDir, "settings.gradle"), "");
+    writeString(new File(projectDir, "build.gradle"),
+        "plugins {\n" +
+            "  id('java')\n" +
+            "  id('net.xdob.pf4boot-plugin')\n" +
+            "}\n"+
+            "pf4bootPlugin {\n" +
+            "  id = 'test-plugin2'\n" +
+            "}\n");
+
+
+    // Run the build
+    GradleRunner runner = GradleRunner.create();
+    runner.forwardOutput();
+    runner.withPluginClasspath();
+    runner.withArguments("pf4boot");
+    runner.withProjectDir(projectDir);
+    BuildResult result = runner.build();
+
+    // Verify the result
+    assertTrue(result.getOutput().contains("build pf4boot plugin for test-plugin2."));
+
+  }
+
 
 
   private void writeString(File file, String string) throws IOException {
