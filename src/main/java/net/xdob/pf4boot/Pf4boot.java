@@ -22,8 +22,10 @@ import java.util.Set;
 public class Pf4boot implements Plugin<ProjectInternal> {
 
   static final Logger LOG = LoggerFactory.getLogger(Pf4boot.class);
-  public static final String PLUGIN = "plugin";
-
+  public static final String PLUGIN_CONFIG_NAME = "plugin";
+  public static final String PLUGIN_CLASSPATH_CONFIG_NAME = "pluginClasspath";
+  public static final String PLATFORM_API_CONFIG_NAME = "platformApi";
+  public static final String PLATFORM_CLASSPATH_CONFIG_NAME = "platformClasspath";
 
   private final ObjectFactory objectFactory;
   private final SoftwareComponentFactory softwareComponentFactory;
@@ -38,14 +40,43 @@ public class Pf4boot implements Plugin<ProjectInternal> {
 
     project.getPluginManager().apply(JavaPlugin.class);
 
+    //Configuration runtimeClasspath = project.getConfigurations().getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
+    Configuration compileClasspath = project.getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
 
-    Configuration plugin = project.getConfigurations().register(PLUGIN, p -> {
+    Configuration platformApi = project.getConfigurations().register(PLATFORM_API_CONFIG_NAME, p -> {
+      p.setCanBeConsumed(false);
+      p.setCanBeResolved(false);
+      p.setTransitive(true);
+      p.setVisible(false);
+    }).get();
+
+    compileClasspath.extendsFrom(platformApi);
+
+    Configuration platformClasspath = project.getConfigurations().register(PLATFORM_CLASSPATH_CONFIG_NAME, p -> {
+      p.setCanBeConsumed(true);
+      p.setCanBeResolved(true);
+      p.setTransitive(true);
+      p.setVisible(false);
+    }).get();
+    platformClasspath.extendsFrom(platformApi);
+
+    Configuration plugin = project.getConfigurations().register(PLUGIN_CONFIG_NAME, p -> {
+      p.setCanBeConsumed(true);
+      p.setCanBeResolved(false);
+      p.setTransitive(true);
+      p.setVisible(false);
+    }).get();
+
+    //Configuration compileOnlyApi = project.getConfigurations().getByName(JavaPlugin.COMPILE_ONLY_API_CONFIGURATION_NAME);
+    compileClasspath.extendsFrom(plugin);
+
+    Configuration pluginClasspath = project.getConfigurations().register(PLUGIN_CLASSPATH_CONFIG_NAME, p -> {
       p.setCanBeConsumed(false);
       p.setCanBeResolved(true);
       p.setTransitive(false);
       p.setVisible(false);
     }).get();
-
+    pluginClasspath.extendsFrom(plugin);
 
   }
 

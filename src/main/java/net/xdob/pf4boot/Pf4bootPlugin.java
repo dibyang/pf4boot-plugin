@@ -42,6 +42,11 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
 
   private static final String PLUGIN_TASK_NAME = "pf4boot";
   public static final String PF4BOOT_PLUGIN = "pf4bootPlugin";
+  public static final String BUNDLE_CONFIG_NAME = "bundle";
+  public static final String BUNDLE_ONLY_CONFIG_NAME = "bundleOnly";
+  public static final String EMBED_CONFIG_NAME = "embed";
+  public static final String PLUGIN_CONFIG_NAME = "plugin";
+
 
   private final ObjectFactory objectFactory;
   private final SoftwareComponentFactory softwareComponentFactory;
@@ -53,9 +58,10 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
   }
 
   public void apply(ProjectInternal project) {
-    project.getPluginManager().apply(JavaPlugin.class);
-    project.getPluginManager().apply(JavaLibraryPlugin.class);
+    project.getPluginManager().apply(Pf4boot.class);
     //project.getPluginManager().apply(JavaPlugin.class);
+    project.getPluginManager().apply(JavaLibraryPlugin.class);
+
 
 
 
@@ -68,14 +74,14 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     Configuration compileClasspath = project.getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
 
 
-    Configuration bundle = project.getConfigurations().register("bundle",plugin -> {
+    Configuration bundle = project.getConfigurations().register(BUNDLE_CONFIG_NAME, plugin -> {
       plugin.setCanBeConsumed(false);
       plugin.setCanBeResolved(true);
       plugin.setTransitive(true);
       plugin.setVisible(false);
     }).get();
 
-    Configuration bundleOnly = project.getConfigurations().register("bundleOnly",plugin -> {
+    Configuration bundleOnly = project.getConfigurations().register(BUNDLE_ONLY_CONFIG_NAME, plugin -> {
       plugin.setCanBeConsumed(false);
       plugin.setCanBeResolved(true);
       plugin.setTransitive(false);
@@ -88,7 +94,7 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     runtimeClasspath.extendsFrom(bundle);
     api.extendsFrom(bundle);
 
-    Configuration embed = project.getConfigurations().register("embed",plugin -> {
+    Configuration embed = project.getConfigurations().register(EMBED_CONFIG_NAME, plugin -> {
       plugin.setCanBeConsumed(false);
       plugin.setCanBeResolved(true);
       plugin.setTransitive(true);
@@ -98,18 +104,6 @@ public class Pf4bootPlugin implements Plugin<ProjectInternal> {
     compileClasspath.extendsFrom(embed);
     runtimeClasspath.extendsFrom(embed);
     api.extendsFrom(embed);
-
-    Configuration plugin = project.getConfigurations().register("plugin",p -> {
-      p.setCanBeConsumed(true);
-      p.setCanBeResolved(true);
-      p.setTransitive(true);
-      p.setVisible(false);
-    }).get();
-
-
-    Configuration compileOnlyApi = project.getConfigurations().getByName(JavaPlugin.COMPILE_ONLY_API_CONFIGURATION_NAME);
-    compileOnlyApi.extendsFrom(plugin);
-
 
     final Properties pluginProp = new Properties();
     File file = project.file("plugin.properties");
