@@ -1,28 +1,27 @@
 package net.xdob.pf4boot;
 
-
 import org.gradle.api.Action;
+import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
-import org.gradle.api.artifacts.*;
-import org.gradle.api.artifacts.type.ArtifactTypeDefinition;
-import org.gradle.api.component.SoftwareComponentFactory;
+import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ConfigurationPublications;
+import org.gradle.api.artifacts.PublishArtifact;
+import org.gradle.api.attributes.Category;
+import org.gradle.api.attributes.LibraryElements;
+import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.CopySpec;
-import org.gradle.api.internal.artifacts.ArtifactAttributes;
-import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact;
-import org.gradle.api.internal.plugins.DefaultArtifactPublicationSet;
-import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.bundling.Zip;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -36,215 +35,271 @@ import java.util.Properties;
 /**
  * pf4boot plugin.
  */
-public class Pf4bootPlugin implements Plugin<ProjectInternal> {
+public class Pf4bootPlugin implements Plugin<Project> {
 
-  static final Logger LOG = LoggerFactory.getLogger(Pf4bootPlugin.class);
+	static final Logger LOG = Logging.getLogger(Pf4bootPlugin.class);
 
-  private static final String PLUGIN_TASK_NAME = "pf4boot";
-  public static final String PF4BOOT_PLUGIN = "pf4bootPlugin";
-  public static final String BUNDLE_CONFIG_NAME = "bundle";
-  public static final String BUNDLE_ONLY_CONFIG_NAME = "bundleOnly";
-  public static final String EMBED_CONFIG_NAME = "embed";
-  public static final String PLUGIN_CONFIG_NAME = "plugin";
+	private static final String PLUGIN_TASK_NAME = "pf4boot";
 
+	public static final String PF4BOOT_PLUGIN = "pf4bootPlugin";
 
-  private final ObjectFactory objectFactory;
-  private final SoftwareComponentFactory softwareComponentFactory;
+	public static final String BUNDLE_CONFIG_NAME = "bundle";
+	public static final String BUNDLE_ONLY_CONFIG_NAME = "bundleOnly";
+	public static final String EMBED_CONFIG_NAME = "embed";
 
-  @Inject
-  public Pf4bootPlugin(ObjectFactory objectFactory, SoftwareComponentFactory softwareComponentFactory) {
-    this.objectFactory = objectFactory;
-    this.softwareComponentFactory = softwareComponentFactory;
-  }
+	/**
+	 * 独立发布/消费 pf4boot zip 的配置。
+	 *
+	 * 依赖方可以这样用：
+	 *
+	 * dependencies {
+	 *   pf4bootPlugin project(path: ":xxx", configuration: "pf4bootElements")
+	 * }
+	 */
+	public static final String PF4BOOT_ELEMENTS_CONFIG_NAME = "pf4bootElements";
 
-  public void apply(ProjectInternal project) {
-    project.getPluginManager().apply(Pf4boot.class);
-    //project.getPluginManager().apply(JavaPlugin.class);
-    project.getPluginManager().apply(JavaLibraryPlugin.class);
+	private final ProviderFactory providerFactory;
+	private final ObjectFactory objectFactory;
 
+	@Inject
+	public Pf4bootPlugin(
+			ProviderFactory providerFactory,
+			ObjectFactory objectFactory
+	) {
+		this.providerFactory = providerFactory;
+		this.objectFactory = objectFactory;
+	}
 
+	@Override
+	public void apply(Project project) {
+		project.getPluginManager().apply(Pf4boot.class);
+		project.getPluginManager().apply(JavaLibraryPlugin.class);
 
+		Configuration compileClasspath =
+				project.getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
 
-    Configuration implementation = project.getConfigurations().getByName(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME);
+		Configuration runtimeClasspath =
+				project.getConfigurations().getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
 
-    //Configuration apiElements = project.getConfigurations().getByName(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
-    Configuration api = project.getConfigurations().getByName(JavaPlugin.API_CONFIGURATION_NAME);
+		Configuration bundle = project.getConfigurations().create(BUNDLE_CONFIG_NAME, conf -> {
+			conf.setCanBeConsumed(false);
+			conf.setCanBeResolved(true);
+			conf.setTransitive(true);
+			conf.setVisible(false);
+			conf.setDescription("Dependencies packaged into pf4boot plugin zip, including transitive dependencies.");
+		});
 
-    Configuration runtimeClasspath = project.getConfigurations().getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
-    Configuration compileClasspath = project.getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+		Configuration bundleOnly = project.getConfigurations().create(BUNDLE_ONLY_CONFIG_NAME, conf -> {
+			conf.setCanBeConsumed(false);
+			conf.setCanBeResolved(true);
+			conf.setTransitive(false);
+			conf.setVisible(false);
+			conf.setDescription("Direct dependencies packaged into pf4boot plugin zip, without transitive dependencies.");
+		});
 
+		Configuration embed = project.getConfigurations().create(EMBED_CONFIG_NAME, conf -> {
+			conf.setCanBeConsumed(false);
+			conf.setCanBeResolved(true);
+			conf.setTransitive(true);
+			conf.setVisible(false);
+			conf.setDescription("Embedded dependencies packaged into pf4boot plugin zip.");
+		});
 
-    Configuration bundle = project.getConfigurations().register(BUNDLE_CONFIG_NAME, plugin -> {
-      plugin.setCanBeConsumed(false);
-      plugin.setCanBeResolved(true);
-      plugin.setTransitive(true);
-      plugin.setVisible(false);
-    }).get();
+		/*
+		 * 只放进编译/运行 classpath。
+		 * 不要默认 extendsFrom(api)，否则会把插件内部依赖暴露给消费者。
+		 */
+		compileClasspath.extendsFrom(bundle, bundleOnly, embed);
+		runtimeClasspath.extendsFrom(bundle, bundleOnly, embed);
 
-    Configuration bundleOnly = project.getConfigurations().register(BUNDLE_ONLY_CONFIG_NAME, plugin -> {
-      plugin.setCanBeConsumed(false);
-      plugin.setCanBeResolved(true);
-      plugin.setTransitive(false);
-      plugin.setVisible(false);
-    }).get();
-    bundleOnly.extendsFrom(bundle);
+		Properties filePluginProperties = loadPluginProperties(project);
 
+		Pf4bootPluginExtension extension =
+				project.getExtensions().create(PF4BOOT_PLUGIN, Pf4bootPluginExtension.class);
 
-    compileClasspath.extendsFrom(bundle);
-    runtimeClasspath.extendsFrom(bundle);
-    api.extendsFrom(bundle);
+		TaskProvider<Zip> pf4bootTask =
+				configurePf4bootTask(project, extension, filePluginProperties, bundle, bundleOnly, embed);
 
-    Configuration embed = project.getConfigurations().register(EMBED_CONFIG_NAME, plugin -> {
-      plugin.setCanBeConsumed(false);
-      plugin.setCanBeResolved(true);
-      plugin.setTransitive(true);
-      plugin.setVisible(false);
-    }).get();
+		configurePf4bootElements(project, pf4bootTask);
+	}
 
-    compileClasspath.extendsFrom(embed);
-    runtimeClasspath.extendsFrom(embed);
-    api.extendsFrom(embed);
+	private Properties loadPluginProperties(Project project) {
+		Properties properties = new Properties();
 
-    final Properties pluginProp = new Properties();
-    File file = project.file("plugin.properties");
-    if (file.exists()) {
-      try (FileReader reader = new FileReader(file)) {
-        pluginProp.load(reader);
-      } catch (IOException e) {
-        //e.printStackTrace();
-        pluginProp.clear();
-      }
-    }
-    Pf4bootPluginExtension pf4bootPlugin = project.getExtensions().create(PF4BOOT_PLUGIN, Pf4bootPluginExtension.class);
+		File file = project.file("plugin.properties");
+		if (!file.exists()) {
+			return properties;
+		}
 
-    configureArchivesAndComponent(project, pf4bootPlugin, pluginProp, bundleOnly, embed);
-  }
+		try (FileReader reader = new FileReader(file)) {
+			properties.load(reader);
+		} catch (IOException e) {
+			throw new GradleException("Failed to read plugin.properties: " + file.getAbsolutePath(), e);
+		}
 
-  private boolean isNullOrEmpty(String s){
-    return s==null || s.isEmpty();
-  }
+		return properties;
+	}
 
-  private void setProperty(Properties pluginProp, String name, Property<String> property) {
-    if(property.isPresent()) {
-      pluginProp.put(name, property.get());
-    }
-  }
+	private TaskProvider<Zip> configurePf4bootTask(
+			Project project,
+			Pf4bootPluginExtension extension,
+			Properties basePluginProperties,
+			Configuration bundle,
+			Configuration bundleOnly,
+			Configuration embed
+	) {
+		TaskProvider<Jar> jarTask = project.getTasks().named(JavaPlugin.JAR_TASK_NAME, Jar.class);
 
-  private void configureArchivesAndComponent(Project project, final Pf4bootPluginExtension pf4bootPlugin,
-                                             final Properties pluginProp,final Configuration... configs) {
+		return project.getTasks().register(PLUGIN_TASK_NAME, Zip.class, zip -> {
+			zip.setGroup(BasePlugin.BUILD_GROUP);
+			zip.setDescription("Build pf4boot plugin package.");
 
-    final Jar jar = (Jar) project.getTasks().getByName("jar");
+			zip.dependsOn(jarTask);
 
-    // Register a task
-    TaskProvider<Zip> pf4boot = project.getTasks().register(PLUGIN_TASK_NAME, Zip.class, new Action<Zip>() {
-          @Override
-          public void execute(Zip zip) {
-            zip.dependsOn(jar);
-            zip.setGroup(BasePlugin.BUILD_GROUP);
-            Path libs = project.getBuildDir().toPath().resolve("libs");
-            zip.getDestinationDirectory().set(
-                project.file(libs.toFile()));
-            final Path plugin_prop_path = project.getBuildDir().toPath().resolve("tmp/plugin.properties");
-            zip.from(plugin_prop_path);
-            zip.into("lib", new Action<CopySpec>() {
-              @Override
-              public void execute(CopySpec c) {
-                for (Configuration config : configs) {
-                  c.from(config);
-                }
-                c.from(libs.resolve(jar.getArchiveFileName().getOrElse("")));
-              }
-            });
+			zip.getDestinationDirectory().set(project.getLayout().getBuildDirectory().dir("libs"));
+			//zip.getArchiveClassifier().set("pf4boot");
+			zip.getArchiveExtension().set("zip");
 
-            zip.doFirst(new Action<Task>() {
-              @Override
-              public void execute(Task task) {
-                handlePluginConfig(pf4bootPlugin, pluginProp);
-                if(isNullOrEmpty(pluginProp.getProperty(PropKeys.PLUGIN_VERSION))) {
-                  pluginProp.put(PropKeys.PLUGIN_VERSION, project.getVersion());
-                }
-                try (OutputStream out = Files.newOutputStream(plugin_prop_path)) {
-                  pluginProp.store(out, "Auto create for Pf4boot Plugin");
-                } catch (IOException e) {
-                  //e.printStackTrace();
-                }
-              }
-            });
+			Path generatedPluginPropertiesPath =
+					project.getLayout()
+							.getBuildDirectory()
+							.file("generated/pf4boot/plugin.properties")
+							.get()
+							.getAsFile()
+							.toPath();
 
-            zip.doLast(new Action<Task>() {
-              @Override
-              public void execute(Task task) {
-                String pluginId = pluginProp.getProperty(PropKeys.PLUGIN_ID);
-                if (pluginId != null) {
-                  System.out.println("build pf4boot plugin for " + pluginId + ".");
-                }
-              }
-            });
-          }
-        });
+			zip.getInputs().property("project.version", String.valueOf(project.getVersion()));
+			zip.getInputs().property("plugin.properties.file", basePluginProperties.toString());
 
-    PublishArtifact pf4bootArtifact = new LazyPublishArtifact(pf4boot);
-    Configuration apiElementConfiguration = project.getConfigurations().getByName(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
-    Configuration runtimeConfiguration = project.getConfigurations().getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
-    Configuration runtimeElementsConfiguration = project.getConfigurations().getByName(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME);
+			zip.doFirst(task -> {
+				Properties effectiveProperties = new Properties();
+				effectiveProperties.putAll(basePluginProperties);
 
-    project.getExtensions().getByType(DefaultArtifactPublicationSet.class).addCandidate(pf4bootArtifact);
+				handlePluginConfig(extension, effectiveProperties);
 
-//    runtimeElementsConfiguration.getOutgoing().getArtifacts()
-//        .removeIf(e->e.getType().equals(ArtifactTypeDefinition.JAR_TYPE));
+				if (isNullOrEmpty(effectiveProperties.getProperty(PropKeys.PLUGIN_VERSION))) {
+					effectiveProperties.put(PropKeys.PLUGIN_VERSION, String.valueOf(project.getVersion()));
+				}
 
-    addZip(apiElementConfiguration, pf4bootArtifact);
-    addZip(runtimeConfiguration, pf4bootArtifact);
-    addRuntimeVariants(project, runtimeElementsConfiguration, pf4bootArtifact);
+				validateRequiredPluginProperties(effectiveProperties);
 
-    //registerSoftwareComponents(project);
-  }
+				try {
+					Files.createDirectories(generatedPluginPropertiesPath.getParent());
+					try (OutputStream out = Files.newOutputStream(generatedPluginPropertiesPath)) {
+						effectiveProperties.store(out, "Auto create for Pf4boot Plugin");
+					}
+				} catch (IOException e) {
+					throw new GradleException(
+							"Failed to write generated plugin.properties: " + generatedPluginPropertiesPath,
+							e
+					);
+				}
+			});
 
-  private void handlePluginConfig( Pf4bootPluginExtension pf4bootPlugin, Properties pluginProp) {
+			zip.from(generatedPluginPropertiesPath.toFile());
 
-    setProperty(pluginProp, PropKeys.PLUGIN_ID, pf4bootPlugin.getId());
-    setProperty(pluginProp, PropKeys.PLUGIN_CLASS, pf4bootPlugin.getPluginClass());
+			zip.into("lib", copySpec -> {
+				copySpec.from(jarTask.flatMap(Jar::getArchiveFile));
 
-    setProperty(pluginProp, PropKeys.PLUGIN_PROVIDER, pf4bootPlugin.getProvider());
-    setProperty(pluginProp, PropKeys.PLUGIN_DESCRIPTION, pf4bootPlugin.getDescription());
-    setProperty(pluginProp, PropKeys.PLUGIN_DEPENDENCIES, pf4bootPlugin.getDependencies());
-    setProperty(pluginProp, PropKeys.PLUGIN_REQUIRES, pf4bootPlugin.getRequires());
-    setProperty(pluginProp, PropKeys.PLUGIN_LICENSE, pf4bootPlugin.getLicense());
+				/*
+				 * bundle：传递依赖
+				 * bundleOnly：只包含直接依赖
+				 * embed：传递依赖
+				 */
+				copySpec.from(bundle);
+				copySpec.from(bundleOnly);
+				copySpec.from(embed);
+			});
 
-    if(isNullOrEmpty(pluginProp.getProperty(PropKeys.PLUGIN_VERSION))) {
-      Property<String> version = pf4bootPlugin.getVersion();
-      if(version.isPresent()){
-        pluginProp.put(PropKeys.PLUGIN_VERSION, version.get());
-      }
-    }
-  }
+			zip.doLast(task -> {
+				Properties effectiveProperties = new Properties();
+				effectiveProperties.putAll(basePluginProperties);
+				handlePluginConfig(extension, effectiveProperties);
 
+				String pluginId = effectiveProperties.getProperty(PropKeys.PLUGIN_ID);
+				LOG.lifecycle("built pf4boot plugin for {}.", pluginId);
+			});
+		});
+	}
 
-//  private void registerSoftwareComponents(Project project) {
-//    ConfigurationContainer configurations = project.getConfigurations();
-//    // the main "Java" component
-//    AdhocComponentWithVariants java = softwareComponentFactory.adhoc("java");
-//    java.addVariantsFromConfiguration(configurations.getByName(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME), new JavaConfigurationVariantMapping("compile", false));
-//    java.addVariantsFromConfiguration(configurations.getByName(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME), new JavaConfigurationVariantMapping("runtime", false));
-//    project.getComponents().add(java);
-//  }
+	private void configurePf4bootElements(Project project, TaskProvider<Zip> pf4bootTask) {
+		Configuration pf4bootElements =
+				project.getConfigurations().create(PF4BOOT_ELEMENTS_CONFIG_NAME, conf -> {
+					conf.setCanBeConsumed(true);
+					conf.setCanBeResolved(false);
+					conf.setVisible(false);
+					conf.setDescription("Consumable pf4boot plugin zip artifact.");
 
-  private void addZip(Configuration configuration, PublishArtifact zipArtifact) {
-    ConfigurationPublications publications = configuration.getOutgoing();
+					conf.getAttributes().attribute(
+							Usage.USAGE_ATTRIBUTE,
+							objectFactory.named(Usage.class, Usage.JAVA_RUNTIME)
+					);
 
-    // Configure an implicit variant
-    publications.getArtifacts().add(zipArtifact);
-    publications.getAttributes().attribute(ArtifactAttributes.ARTIFACT_FORMAT, ArtifactTypeDefinition.ZIP_TYPE);
-  }
+					conf.getAttributes().attribute(
+							Category.CATEGORY_ATTRIBUTE,
+							objectFactory.named(Category.class, Category.LIBRARY)
+					);
 
-  private void addRuntimeVariants(Project project, Configuration configuration, PublishArtifact jarArtifact) {
-    ConfigurationPublications publications = configuration.getOutgoing();
+					conf.getAttributes().attribute(
+							LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+							objectFactory.named(LibraryElements.class, "zip")
+					);
+				});
 
-    // Configure an implicit variant
-    publications.getArtifacts().add(jarArtifact);
-    publications.getAttributes().attribute(ArtifactAttributes.ARTIFACT_FORMAT, ArtifactTypeDefinition.ZIP_TYPE);
+		pf4bootElements.getAttributes().attribute(
+				Pf4boot.PF4BOOT_ARTIFACT_ATTRIBUTE,
+				"zip"
+		);
+		ConfigurationPublications publications = pf4bootElements.getOutgoing();
+		publications.artifact(pf4bootTask);
+	}
 
-  }
+	private boolean isNullOrEmpty(String s) {
+		return s == null || s.trim().isEmpty();
+	}
 
+	private void setProperty(Properties pluginProperties, String name, Property<String> property) {
+		if (property != null && property.isPresent()) {
+			String value = property.get();
+			if (!isNullOrEmpty(value)) {
+				pluginProperties.put(name, value);
+			}
+		}
+	}
+
+	private void handlePluginConfig(
+			Pf4bootPluginExtension extension,
+			Properties pluginProperties
+	) {
+		setProperty(pluginProperties, PropKeys.PLUGIN_ID, extension.getId());
+		setProperty(pluginProperties, PropKeys.PLUGIN_CLASS, extension.getPluginClass());
+
+		setProperty(pluginProperties, PropKeys.PLUGIN_PROVIDER, extension.getProvider());
+		setProperty(pluginProperties, PropKeys.PLUGIN_DESCRIPTION, extension.getDescription());
+		setProperty(pluginProperties, PropKeys.PLUGIN_DEPENDENCIES, extension.getDependencies());
+		setProperty(pluginProperties, PropKeys.PLUGIN_REQUIRES, extension.getRequires());
+		setProperty(pluginProperties, PropKeys.PLUGIN_LICENSE, extension.getLicense());
+
+		if (isNullOrEmpty(pluginProperties.getProperty(PropKeys.PLUGIN_VERSION))) {
+			setProperty(pluginProperties, PropKeys.PLUGIN_VERSION, extension.getVersion());
+		}
+	}
+
+	private void validateRequiredPluginProperties(Properties pluginProperties) {
+		String pluginId = pluginProperties.getProperty(PropKeys.PLUGIN_ID);
+		String pluginClass = pluginProperties.getProperty(PropKeys.PLUGIN_CLASS);
+		String pluginVersion = pluginProperties.getProperty(PropKeys.PLUGIN_VERSION);
+
+		if (isNullOrEmpty(pluginId)) {
+			throw new GradleException("Missing required pf4boot plugin property: " + PropKeys.PLUGIN_ID);
+		}
+
+		if (isNullOrEmpty(pluginClass)) {
+			throw new GradleException("Missing required pf4boot plugin property: " + PropKeys.PLUGIN_CLASS);
+		}
+
+		if (isNullOrEmpty(pluginVersion)) {
+			throw new GradleException("Missing required pf4boot plugin property: " + PropKeys.PLUGIN_VERSION);
+		}
+	}
 }
-
