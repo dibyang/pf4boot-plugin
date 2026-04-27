@@ -17,6 +17,7 @@ import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.Task;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.bundling.Zip;
@@ -171,53 +172,53 @@ public class Pf4bootPlugin implements Plugin<Project> {
 			zip.getInputs().property("project.version", String.valueOf(project.getVersion()));
 			zip.getInputs().property("plugin.properties.file", basePluginProperties.toString());
 
-			zip.doFirst(task -> {
-				Properties effectiveProperties = new Properties();
-				effectiveProperties.putAll(basePluginProperties);
+			zip.doFirst(new Action<Task>() {
+				@Override
+				public void execute(Task task) {
+					Properties effectiveProperties = new Properties();
+					effectiveProperties.putAll(basePluginProperties);
 
-				handlePluginConfig(extension, effectiveProperties);
+					handlePluginConfig(extension, effectiveProperties);
 
-				if (isNullOrEmpty(effectiveProperties.getProperty(PropKeys.PLUGIN_VERSION))) {
-					effectiveProperties.put(PropKeys.PLUGIN_VERSION, String.valueOf(project.getVersion()));
-				}
-
-				validateRequiredPluginProperties(effectiveProperties);
-
-				try {
-					Files.createDirectories(generatedPluginPropertiesPath.getParent());
-					try (OutputStream out = Files.newOutputStream(generatedPluginPropertiesPath)) {
-						effectiveProperties.store(out, "Auto create for Pf4boot Plugin");
+					if (isNullOrEmpty(effectiveProperties.getProperty(PropKeys.PLUGIN_VERSION))) {
+						effectiveProperties.put(PropKeys.PLUGIN_VERSION, String.valueOf(project.getVersion()));
 					}
-				} catch (IOException e) {
-					throw new GradleException(
-							"Failed to write generated plugin.properties: " + generatedPluginPropertiesPath,
-							e
-					);
+
+					validateRequiredPluginProperties(effectiveProperties);
+
+					try {
+						Files.createDirectories(generatedPluginPropertiesPath.getParent());
+						try (OutputStream out = Files.newOutputStream(generatedPluginPropertiesPath)) {
+							effectiveProperties.store(out, "Auto create for Pf4boot Plugin");
+						}
+					} catch (IOException e) {
+						throw new GradleException("Failed to write plugin.properties", e);
+					}
 				}
 			});
 
 			zip.from(generatedPluginPropertiesPath.toFile());
 
-			zip.into("lib", copySpec -> {
-				copySpec.from(jarTask.flatMap(Jar::getArchiveFile));
-
-				/*
-				 * bundle：传递依赖
-				 * bundleOnly：只包含直接依赖
-				 * embed：传递依赖
-				 */
-				copySpec.from(bundle);
-				copySpec.from(bundleOnly);
-				copySpec.from(embed);
+			zip.into("lib", new Action<CopySpec>() {
+				@Override
+				public void execute(CopySpec copySpec) {
+					copySpec.from(jarTask.flatMap(Jar::getArchiveFile));
+					copySpec.from(bundle);
+					copySpec.from(bundleOnly);
+					copySpec.from(embed);
+				}
 			});
 
-			zip.doLast(task -> {
-				Properties effectiveProperties = new Properties();
-				effectiveProperties.putAll(basePluginProperties);
-				handlePluginConfig(extension, effectiveProperties);
+			zip.doLast(new Action<Task>() {
+				@Override
+				public void execute(Task task) {
+					Properties effectiveProperties = new Properties();
+					effectiveProperties.putAll(basePluginProperties);
+					handlePluginConfig(extension, effectiveProperties);
 
-				String pluginId = effectiveProperties.getProperty(PropKeys.PLUGIN_ID);
-				LOG.lifecycle("built pf4boot plugin for {}.", pluginId);
+					String pluginId = effectiveProperties.getProperty(PropKeys.PLUGIN_ID);
+					LOG.lifecycle("built pf4boot plugin for {}.", pluginId);
+				}
 			});
 		});
 	}
