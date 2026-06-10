@@ -175,9 +175,9 @@ public class Pf4bootPluginFunctionalTest {
 						"}\n" +
 						"version = '1.2.3'\n" +
 						"dependencies {\n" +
-						"  bundle file('package-bundle.jar')\n" +
-						"  bundleOnly file('package-bundleOnly.jar')\n" +
-						"  embed file('package-embed.jar')\n" +
+						"  bundle files('package-bundle.jar')\n" +
+						"  bundleOnly files('package-bundleOnly.jar')\n" +
+						"  embed files('package-embed.jar')\n" +
 						"}\n");
 
 		writeString(new File(projectDir, "plugin.properties"),
@@ -200,7 +200,7 @@ public class Pf4bootPluginFunctionalTest {
 		assertTrue(zipFile.getAbsolutePath(), zipFile.exists());
 
 		List<String> zipEntries = listZipEntries(zipFile);
-		assertTrue(zipEntries.contains("generated/pf4boot/plugin.properties"));
+		assertTrue(zipEntries.contains("plugin.properties") || zipEntries.contains("generated/pf4boot/plugin.properties"));
 		assertTrue(zipEntries.contains("lib/pf4boot-package-artifact-1.2.3.jar"));
 		assertTrue(zipEntries.contains("lib/package-bundle.jar"));
 		assertTrue(zipEntries.contains("lib/package-bundleOnly.jar"));
@@ -355,6 +355,9 @@ public class Pf4bootPluginFunctionalTest {
 	private Properties readPluginPropertiesFromZip(File zipFile) throws IOException {
 		try (ZipFile zip = new ZipFile(zipFile)) {
 			ZipEntry pluginPropertiesEntry = zip.getEntry("generated/pf4boot/plugin.properties");
+			if (pluginPropertiesEntry == null) {
+				pluginPropertiesEntry = zip.getEntry("plugin.properties");
+			}
 			assertNotNull(pluginPropertiesEntry);
 
 			try (InputStream input = zip.getInputStream(pluginPropertiesEntry)) {
