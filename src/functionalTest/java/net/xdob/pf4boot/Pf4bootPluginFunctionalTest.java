@@ -9,10 +9,21 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -63,6 +74,7 @@ public class Pf4bootPluginFunctionalTest {
 						"  pluginClass = 'net.xdob.TestPlugin'\n" +
 						"  version = '1.0.0'\n" +
 						"}\n");
+		writeString(new File(projectDir, "plugin.properties"), "");
 
 		BuildResult result = GradleRunner.create()
 				.forwardOutput()
@@ -150,10 +162,206 @@ public class Pf4bootPluginFunctionalTest {
 		assertTrue(result.getOutput(), result.getOutput().contains("Avoid using 'unspecified'."));
 	}
 
+	@Test
+	public void shouldPackageGeneratedPropertiesAndDependencies() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldPackageGeneratedPropertiesAndDependencies");
+		Files.createDirectories(projectDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-package-artifact'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"version = '1.2.3'\n" +
+						"dependencies {\n" +
+						"  bundle file('package-bundle.jar')\n" +
+						"  bundleOnly file('package-bundleOnly.jar')\n" +
+						"  embed file('package-embed.jar')\n" +
+						"}\n");
+
+		writeString(new File(projectDir, "plugin.properties"),
+				"plugin.id = packaged-test-plugin\n" +
+						"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = 1.2.3\n" +
+						"plugin.provider = packaged-provider\n");
+		writeString(new File(projectDir, "package-bundle.jar"), "bundle jar");
+		writeString(new File(projectDir, "package-bundleOnly.jar"), "bundleOnly jar");
+		writeString(new File(projectDir, "package-embed.jar"), "embed jar");
+
+		GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.build();
+
+		File zipFile = new File(projectDir, "build/libs/pf4boot-package-artifact-1.2.3.zip");
+		assertTrue(zipFile.getAbsolutePath(), zipFile.exists());
+
+		List<String> zipEntries = listZipEntries(zipFile);
+		assertTrue(zipEntries.contains("generated/pf4boot/plugin.properties"));
+		assertTrue(zipEntries.contains("lib/pf4boot-package-artifact-1.2.3.jar"));
+		assertTrue(zipEntries.contains("lib/package-bundle.jar"));
+		assertTrue(zipEntries.contains("lib/package-bundleOnly.jar"));
+		assertTrue(zipEntries.contains("lib/package-embed.jar"));
+
+		Properties generatedProperties = readPluginPropertiesFromZip(zipFile);
+		assertEquals("packaged-test-plugin", generatedProperties.getProperty("plugin.id"));
+		assertEquals("net.xdob.TestPlugin", generatedProperties.getProperty("plugin.class"));
+		assertEquals("1.2.3", generatedProperties.getProperty("plugin.version"));
+		assertEquals("packaged-provider", generatedProperties.getProperty("plugin.provider"));
+	}
+
+	@Test
+	public void shouldPreferExtensionPropertiesOverPluginPropertiesFile() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldPreferExtensionPropertiesOverPluginPropertiesFile");
+		Files.createDirectories(projectDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-property-priority'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n"						+
+						"}\n" +
+						"version = '2.0.0'\n" +
+						"pf4bootPlugin {\n" +
+						"  provider = 'extension-provider'\n" +
+						"}\n");
+
+		writeString(new File(projectDir, "plugin.properties"),
+				"plugin.id = priority-plugin\n" +
+						"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = 2.0.0\n" +
+						"plugin.provider = properties-provider\n");
+
+		GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.build();
+
+		File zipFile = new File(projectDir, "build/libs/pf4boot-property-priority-2.0.0.zip");
+		Properties generatedProperties = readPluginPropertiesFromZip(zipFile);
+
+		assertEquals("priority-plugin", generatedProperties.getProperty("plugin.id"));
+		assertEquals("net.xdob.TestPlugin", generatedProperties.getProperty("plugin.class"));
+		assertEquals("extension-provider", generatedProperties.getProperty("plugin.provider"));
+	}
+
+	@Test
+	public void shouldKeepUtf8ContentInGeneratedProperties() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldKeepUtf8ContentInGeneratedProperties");
+		Files.createDirectories(projectDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-utf8'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"version = '3.0.0'\n");
+
+		writeString(new File(projectDir, "plugin.properties"),
+				"plugin.id = utf8-plugin\n" +
+						"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = 3.0.0\n" +
+						"plugin.description = 这是一个中文描述\n" +
+						"plugin.requires = 依赖中文依赖\n");
+
+		GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.build();
+
+		File zipFile = new File(projectDir, "build/libs/pf4boot-utf8-3.0.0.zip");
+		Properties generatedProperties = readPluginPropertiesFromZip(zipFile);
+
+		assertEquals("这是一个中文描述", generatedProperties.getProperty("plugin.description"));
+		assertEquals("依赖中文依赖", generatedProperties.getProperty("plugin.requires"));
+	}
+
+	@Test
+	public void shouldRebuildAfterPluginPropertiesChange() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldRebuildAfterPluginPropertiesChange");
+		Files.createDirectories(projectDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-rebuild'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"version = '4.0.0'\n");
+
+		File pluginProperties = new File(projectDir, "plugin.properties");
+		writeString(pluginProperties,
+				"plugin.id = rebuild-plugin-before\n" +
+						"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = 4.0.0\n");
+
+		GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.build();
+
+		File zipFile = new File(projectDir, "build/libs/pf4boot-rebuild-4.0.0.zip");
+		Properties generatedPropertiesBefore = readPluginPropertiesFromZip(zipFile);
+		assertEquals("rebuild-plugin-before", generatedPropertiesBefore.getProperty("plugin.id"));
+
+		writeString(pluginProperties,
+				"plugin.id = rebuild-plugin-after\n" +
+						"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = 4.0.0\n");
+
+		GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.build();
+
+		Properties generatedPropertiesAfter = readPluginPropertiesFromZip(zipFile);
+		assertEquals("rebuild-plugin-after", generatedPropertiesAfter.getProperty("plugin.id"));
+		assertNotEquals(
+				generatedPropertiesBefore.getProperty("plugin.id"),
+				generatedPropertiesAfter.getProperty("plugin.id")
+		);
+	}
+
 
   private void writeString(File file, String string) throws IOException {
     try (Writer writer = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
       writer.write(string);
     }
   }
+
+	private List<String> listZipEntries(File zipFile) throws IOException {
+		List<String> entryNames = new ArrayList<>();
+		try (ZipFile zip = new ZipFile(zipFile)) {
+			Enumeration<? extends ZipEntry> entries = zip.entries();
+			while (entries.hasMoreElements()) {
+				entryNames.add(entries.nextElement().getName());
+			}
+		}
+		return entryNames;
+	}
+
+	private Properties readPluginPropertiesFromZip(File zipFile) throws IOException {
+		try (ZipFile zip = new ZipFile(zipFile)) {
+			ZipEntry pluginPropertiesEntry = zip.getEntry("generated/pf4boot/plugin.properties");
+			assertNotNull(pluginPropertiesEntry);
+
+			try (InputStream input = zip.getInputStream(pluginPropertiesEntry)) {
+				Properties properties = new Properties();
+				properties.load(new InputStreamReader(input, StandardCharsets.UTF_8));
+				return properties;
+			}
+		}
+	}
 }
