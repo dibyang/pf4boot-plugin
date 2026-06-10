@@ -8,10 +8,10 @@ import org.gradle.testkit.runner.GradleRunner;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertTrue;
 
@@ -33,7 +33,9 @@ public class Pf4bootPluginFunctionalTest {
 
 		writeString(new File(projectDir, "plugin.properties"),
 				"plugin.id = test-plugin1\n" +
-						"plugin.class = net.xdob.TestPlugin\n");
+						"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = 1.0.0\n" +
+						"plugin.provider = unit");
 
 		BuildResult result = GradleRunner.create()
 				.forwardOutput()
@@ -59,6 +61,7 @@ public class Pf4bootPluginFunctionalTest {
 						"pf4bootPlugin {\n" +
 						"  id = 'test-plugin2'\n" +
 						"  pluginClass = 'net.xdob.TestPlugin'\n" +
+						"  version = '1.0.0'\n" +
 						"}\n");
 
 		BuildResult result = GradleRunner.create()
@@ -71,9 +74,85 @@ public class Pf4bootPluginFunctionalTest {
 		assertTrue(result.getOutput(), result.getOutput().contains("test-plugin2"));
 	}
 
+	@Test
+	public void shouldFailWhenPluginIdMissing() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldFailWhenPluginIdMissing");
+		Files.createDirectories(projectDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n");
+		writeString(new File(projectDir, "plugin.properties"),
+				"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = 1.0.0\n");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.buildAndFail();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("Invalid pf4boot plugin property 'plugin.id'"));
+	}
+
+	@Test
+	public void shouldFailWhenPluginClassMissing() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldFailWhenPluginClassMissing");
+		Files.createDirectories(projectDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n");
+		writeString(new File(projectDir, "plugin.properties"),
+				"plugin.id = test-plugin3\n" +
+						"plugin.version = 1.0.0\n");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.buildAndFail();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("Invalid pf4boot plugin property 'plugin.class'"));
+	}
+
+	@Test
+	public void shouldFailWhenPluginVersionUnspecified() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldFailWhenPluginVersionUnspecified");
+		Files.createDirectories(projectDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n");
+		writeString(new File(projectDir, "plugin.properties"),
+				"plugin.id = test-plugin4\n" +
+						"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = unspecified\n");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.buildAndFail();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("Avoid using 'unspecified'."));
+	}
+
 
   private void writeString(File file, String string) throws IOException {
-    try (Writer writer = new FileWriter(file)) {
+    try (Writer writer = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
       writer.write(string);
     }
   }
