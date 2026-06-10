@@ -7,27 +7,20 @@ All release notes are recorded here. Please update this file before each release
 
 ## [Unreleased]
 
-### Added
-- Added bilingual changelog files: `CHANGELOG.md` and `CHANGELOG_EN.md`.
+No pending entries yet.
 
-### Changed
-- Added pre-release documentation planning/checklist with explicit `check` vs `test` guidance.
-- Enriched Usage and Developer Guide:
+## [1.4.0] - 2026-06-10
+
+### Added
+- Added bilingual changelogs: `CHANGELOG.md` and `CHANGELOG_EN.md`.
+- Added pre-release documentation checks, including explicit `check` vs `test` scope.
+- Expanded Usage and Developer Guide documentation:
   - Added dependency group explanation (`bundle` / `bundleOnly` / `embed`).
-  - Added local dependency example with `files('libs/...')`.
-  - Added artifact validation instructions (`build/libs/<project>-<version>.zip` content checks).
-  - Added extension/config precedence, checklists, and troubleshooting in the Developer Guide.
+  - Added local file dependency example with `files('libs/...')`.
+  - Added artifact validation flow for `build/libs/<project>-<version>.zip`.
+  - Added extension precedence details, release checklists, and troubleshooting guidance.
 
 ### Fixed
-- Fixed duplicated section numbering issue in the Chinese Developer Guide (section conflict under “4.x” headings).
-
-## [1.4.0] - 2026-06-10 (planned)
-
-### Notes
-- Version `1.4.0` will collect current documentation and local-development improvements.
-  The official release date is determined by release execution.
-
-### Added
-- Local development documentation coverage in Chinese and English, including plugin metadata, dependencies, and pre-release checks.
-- Bilingual changelog (`CHANGELOG.md`, `CHANGELOG_EN.md`).
+- Fixed duplicate section numbering in Developer Guide for local documentation navigation and references.
+- Added pre-release documentation planning/checklist, improving local development consistency.
 

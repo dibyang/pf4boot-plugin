@@ -6,26 +6,20 @@
 
 ## [Unreleased]
 
-### 已添加
-- 新增 `CHANGELOG.md` 与 `CHANGELOG_EN.md`（双语变更日志体系）。
+本版本暂无新增条目。
 
-### 已变更
-- 发布前文档计划与验收内容补充为可执行清单，新增对 `check` 与 `test` 场景区分的说明。
-- 使用说明（Usage）与开发者手册补齐：
-  - 增加依赖分组说明（`bundle` / `bundleOnly` / `embed`）。
-  - 增加 `files('libs/...')` 本地文件依赖示例。
-  - 明确产物校验方式（`build/libs/<project>-<version>.zip` 内容校验）。
-  - 增加开发者手册配置优先级、验收清单和常见问题排查。
+## [1.4.0] - 2026-06-10
+
+### 已添加
+- 新增 `CHANGELOG.md` 与 `CHANGELOG_EN.md`（中文/英文双语变更日志）。
+- 新增发布前文档检查清单，区分 `check` 与 `test` 验证边界。
+- 补齐使用说明（Usage）与开发者手册（Developer Guide）文档内容：
+  - 增加依赖分组说明：`bundle` / `bundleOnly` / `embed`。
+  - 增加本地文件依赖写法：`files('libs/...')`。
+  - 明确本地构建产物（`build/libs/<project>-<version>.zip`）校验流程与验收项。
+  - 新增配置优先级说明、开发者验收清单与常见问题排查。
 
 ### 已修复
-- 修正中文文档中开发者手册章节编号重复问题（避免阅读与引用歧义）。
-
-## [1.4.0] - 2026-06-10（计划发布）
-
-### 说明
-- `1.4.0` 包含现阶段的文档与开发体验改善条目，实际发布日期以正式发布日志为准。
-
-### Added
-- Local development ergonomics documentation for plugin metadata, dependency usage, and release checks (Chinese/English).
-- Bilingual changelog (`CHANGELOG.md`, `CHANGELOG_EN.md`).
+- 修正开发者手册中章节编号重复，避免引用和阅读歧义。
+- 补齐发布前文档规划与验收动作，提升本地开发发布一致性。
 
