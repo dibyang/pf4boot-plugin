@@ -85,6 +85,14 @@ pf4bootPlugin{
 
 - 生成 `plugin.properties` 到 `build/generated/pf4boot/plugin.properties`
 - 打包为 zip，放到 `build/libs`，可直接用于本地验证。
+- zip 内会包含 `plugin.properties`（由上一步生成文件）以及 `lib/` 下的 jar 产物。
+
+### 发布前建议
+
+- 先确认 `plugin.id`、`plugin.class`、`plugin.version` 存在且不为空；
+- 确认 `plugin.version` 为显式版本，不要使用 `unspecified`；
+- 先在本地运行一次 `./gradlew pf4boot`，再按需执行 `./gradlew check` 做全链路验证。
+- 如无特殊需求，不建议引入未声明的 `bundle/bundleOnly/embed` 依赖，避免产物不可复现。
 
 ### 文档入口
 

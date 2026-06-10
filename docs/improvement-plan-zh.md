@@ -22,28 +22,28 @@
 
 ### P1（必须达成）
 
-- [ ] 将 `pf4boot` 任务改为明确声明式输入/输出：
+- [x] 将 `pf4boot` 任务改为明确声明式输入/输出：
   - `plugin.properties` 文件作为 `inputs`（若存在）
   - `pf4bootPlugin` 扩展关键字段（`id`、`pluginClass`、`version`、`provider`、`description`、`dependencies`、`requires`、`license`）作为 `inputs`
   - 任务产物 zip 与其路径作为 `outputs`
-- [ ] 统一 `plugin.properties` 的读写编码为 UTF-8。
-- [ ] 增强必填校验与版本校验：
+- [x] 统一 `plugin.properties` 的读写编码为 UTF-8。
+- [x] 增强必填校验与版本校验：
   - 缺失 `plugin.id`、`plugin.class` 直接 fail
   - `plugin.version` 禁止空值/`unspecified` 等无效值
-- [ ] 失败信息必须包含：字段名、实际值、修复建议
+- [x] 失败信息必须包含：字段名、实际值、修复建议
 
 ### P2（建议达成）
 
-- [ ] 优化日志输出：打印 zip 产物路径、最终生效配置摘要、入包清单
-- [ ] 补齐 `bundle`、`bundleOnly`、`embed` 相关文档说明和排障提示
-- [ ] 在 `developer-guide-*` 增加“常见问题快速定位”章节
+- [x] 优化日志输出：打印 zip 产物路径、最终生效配置摘要、入包清单
+- [x] 补齐 `bundle`、`bundleOnly`、`embed` 相关文档说明和排障提示
+- [x] 在 `developer-guide-*` 增加“常见问题快速定位”章节
 
 ### P3（增强）
 
-- [ ] 增加本地开发场景的功能测试：
+- [x] 增加本地开发场景的功能测试：  
   - 仅文件配置场景
   - 仅 extension 配置场景
-- [ ] 增加 failure 测试：
+- [x] 增加 failure 测试：  
   - 缺失 `plugin.id`
   - 缺失 `plugin.class`
   - `version=unspecified`
@@ -70,9 +70,16 @@
 
 ## 4. 验收标准（Acceptance）
 
-- [ ] 运行 `./gradlew pf4boot`，在修改 `plugin.properties` 或 `pf4bootPlugin` 配置后，任务输入变化可被识别，构建行为可预期。
-- [ ] `build/generated/pf4boot/plugin.properties` 与 zip 内容与当前配置一致。
-- [ ] `plugin.id` / `plugin.class` 缺失时，构建快速失败，并输出明确字段和修复动作。
-- [ ] `plugin.version=unspecified` 被拒绝并提示有效版本要求。
-- [ ] `bundle`/`bundleOnly`/`embed` 至少各有对应测试场景且通过。
-- [ ] 中文/英文两份文档条目、示例、验收与术语同步更新。
+- [x] 运行 `./gradlew pf4boot`，在修改 `plugin.properties` 或 `pf4bootPlugin` 配置后，任务输入变化可被识别，构建行为可预期。
+- [x] `build/generated/pf4boot/plugin.properties` 与 zip 内容与当前配置一致。
+- [x] `plugin.id` / `plugin.class` 缺失时，构建快速失败，并输出明确字段和修复动作。
+- [x] `plugin.version=unspecified` 被拒绝并提示有效版本要求。
+- [x] `bundle`/`bundleOnly`/`embed` 至少各有对应测试场景且通过。
+- [x] 中文/英文两份文档条目、示例、验收与术语同步更新。
+
+### 5. 发布前文档同步验收（本次补齐）
+
+- [x] README 与 Usage、Developer Guide 的中文/英文内容已一致对齐；
+- [x] Usage 新增 zip 产物校验与依赖打包规则说明；
+- [x] Developer Guide 增补配置优先级与发布前验收流程；
+- [x] 增补本地联调失败场景的排障指引。

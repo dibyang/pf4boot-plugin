@@ -41,7 +41,23 @@ pf4bootPlugin {
 }
 ```
 
-When both exist, extension values take precedence.
+### 2.1 Priority of configuration sources (important)
+
+- If both `plugin.properties` and `pf4bootPlugin` extension define the same key, `pf4bootPlugin` takes precedence.
+- Recommendation: keep stable defaults in `plugin.properties` and inject per-build overrides in the extension.
+
+```groovy
+// plugin.properties
+plugin.id=demo-plugin
+plugin.provider=from-file
+
+// build.gradle
+pf4bootPlugin {
+  provider = 'from-extension'
+}
+```
+
+Packed result will contain `plugin.provider=from-extension`.
 
 ### 3. Dependency packaging rules
 
@@ -59,14 +75,40 @@ dependencies {
 }
 ```
 
-### 4. Local development flow
+Local file dependency example:
+
+```groovy
+dependencies {
+  bundle files('libs/local-bundle.jar')
+  bundleOnly files('libs/local-bundle-only.jar')
+  embed files('libs/local-embed.jar')
+}
+```
+
+### 4. Local development checklist (recommended)
+
+Before release, run:
+
+```text
+./gradlew pf4boot
+├─ validate build/generated/pf4boot/plugin.properties
+├─ verify build/libs/<project>-<version>.zip
+├─ ensure zip contains plugin.properties and lib/<project>-<version>.jar
+├─ verify bundle / bundleOnly / embed scope matches expected usage
+├─ verify UTF-8 fields (description/requires/provider) are readable
+└─ ensure required keys (id/class/version) are not empty
+```
+
+Optional: run `./gradlew check` for full functional verification.
+
+### 5. Local development flow
 
 - Step 1: configure plugin metadata and apply `net.xdob.pf4boot-plugin`
 - Step 2: run `./gradlew pf4boot`
 - Step 3: check `build/generated/pf4boot/plugin.properties`
 - Step 4: verify `build/libs` zip contents
 
-### 5. Local consumption (development only)
+### 6. Local consumption (development only)
 
 ```groovy
 dependencies {
@@ -74,12 +116,15 @@ dependencies {
 }
 ```
 
-### 6. Troubleshooting
+### 7. Troubleshooting
 
 - Missing required properties: confirm they are set in either file or extension
-- Invalid version: set explicit `plugin.version`
+- Invalid version: set explicit `plugin.version` (rejects empty or `unspecified`)
 - Garbled properties file: ensure UTF-8 encoding
-- Prefer one source of truth when checking final value resolution
+- Prefer one source of truth: `pf4bootPlugin` extension has higher priority than `plugin.properties`
+- For final effective value checks, compare:
+  - `build/generated/pf4boot/plugin.properties`
+  - `effective plugin properties` output in build logs
 
 ### 7. Continue reading
 

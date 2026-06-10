@@ -52,11 +52,81 @@ pf4bootPlugin {
 
 ### 4) 检查输出
 
+### 4.1 运行结果
+
 ```text
-build/libs/<project>.zip
+build/libs/<project>-<version>.zip
 ```
 
-并确认 `build/generated/pf4boot/plugin.properties` 在 zip 中。
+### 4.2 产物内容
+
+- `plugin.properties`（在 zip 根目录）
+- `lib/<project>-<version>.jar`
+- `lib/` 下的 `bundle` / `bundleOnly` / `embed` 相关依赖 jar
+
+可在 Windows PowerShell 下快速确认：
+
+```powershell
+Expand-Archive -Path build/libs/<project>-<version>.zip -DestinationPath build/verify -Force
+Get-ChildItem build/verify
+```
+
+### 5) 依赖分组验证
+
+#### `bundle`
+
+`bundle` 会把依赖及其传递依赖一起打包。
+
+```groovy
+dependencies {
+  bundle "com.squareup.okio:okio:3.0.0"
+}
+```
+
+#### `bundleOnly`
+
+`bundleOnly` 只打包声明的第一层依赖，不带传递依赖。
+
+```groovy
+dependencies {
+  bundleOnly "org.apache.commons:commons-lang3:3.12.0"
+}
+```
+
+#### `embed`
+
+`embed` 常用于本地联调需要内嵌的库。
+
+```groovy
+dependencies {
+  embed project(':shared-lib')
+}
+```
+
+#### 本地文件依赖
+
+在 `build.gradle` 中用 `files(...)` 声明本地 jar。
+
+```groovy
+dependencies {
+  bundle files("libs/local-bundle.jar")
+  bundleOnly files("libs/local-bundle-only.jar")
+  embed files("libs/local-embed.jar")
+}
+```
+
+### 6) 本地联调验收清单（发布前建议）
+
+```text
+./gradlew pf4boot
+├─ build/libs/<project>-<version>.zip
+├─ build/generated/pf4boot/plugin.properties
+├─ plugin.id / plugin.class / plugin.version 与预期一致
+├─ 中文配置项（description/requires/provider）不乱码（UTF-8）
+└─ bundle/bundleOnly/embed 与本地需求一致
+```
+
+出现失败时先对照 [开发者手册（中文）](developer-guide-zh.md) 的“常见问题排查”。
 
 ### 下一步
 

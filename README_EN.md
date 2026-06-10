@@ -86,6 +86,14 @@ This will:
 - generate `build/generated/pf4boot/plugin.properties`
 - create a ZIP package under `build/libs`
 - include plugin jar and configured dependency configurations for local verification.
+- include `plugin.properties` at the ZIP root, generated from the build step, and jars under `lib/`.
+
+### Pre-release checklist
+
+- Ensure `plugin.id`, `plugin.class`, and `plugin.version` are not empty;
+- Use an explicit `plugin.version` and avoid `unspecified`;
+- Run `./gradlew pf4boot` first, then `./gradlew check` when you want full local verification;
+- Avoid unintentionally adding undeclared `bundle`/`bundleOnly`/`embed` dependencies to keep artifacts reproducible.
 
 ### Docs
 

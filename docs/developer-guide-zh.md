@@ -41,7 +41,23 @@ pf4bootPlugin {
 }
 ```
 
-当两者都存在时，以 `pf4bootPlugin` 扩展值为准。
+### 2.1 配置优先级（关键）
+
+- 当 `plugin.properties` 与 `pf4bootPlugin` 扩展同字段同时存在时，以 `pf4bootPlugin` 扩展值为准。
+- 建议把“默认值”放到 `plugin.properties`，把“本次构建覆盖值”放到扩展中。
+
+```groovy
+// plugin.properties
+plugin.id=demo-plugin
+plugin.provider=from-file
+
+// build.gradle
+pf4bootPlugin {
+  provider = 'from-extension'
+}
+```
+
+最终打包结果中 `plugin.provider=from-extension`。
 
 ### 3. 依赖打包规则
 
@@ -59,14 +75,40 @@ dependencies {
 }
 ```
 
-### 4. 本地开发流程
+本地文件依赖示例：
+
+```groovy
+dependencies {
+  bundle files('libs/local-bundle.jar')
+  bundleOnly files('libs/local-bundle-only.jar')
+  embed files('libs/local-embed.jar')
+}
+```
+
+### 4. 本地开发验收清单（建议）
+
+发布前建议执行：
+
+```text
+./gradlew pf4boot
+├─ 验证 build/generated/pf4boot/plugin.properties
+├─ 验证 build/libs/<project>-<version>.zip
+├─ 验证 zip 中存在 plugin.properties 与 lib/<project>-<version>.jar
+├─ 验证 bundle/bundleOnly/embed 行为与本次需求一致
+├─ 验证中文字段（description/requires/provider）不会乱码（UTF-8）
+└─ 验证必须字段（id/class/version）不为空
+```
+
+可选：`./gradlew check` 做本地功能测试完整回归。
+
+### 5. 本地开发流程
 
 - 步骤 1：配置插件元数据并应用 `net.xdob.pf4boot-plugin`
 - 步骤 2：执行 `./gradlew pf4boot`
 - 步骤 3：检查 `build/generated/pf4boot/plugin.properties`
 - 步骤 4：检查 `build/libs` 下 zip 是否包含期望依赖
 
-### 5. 产物消费（本地联调）
+### 6. 产物消费（本地联调）
 
 ```groovy
 dependencies {
@@ -74,12 +116,15 @@ dependencies {
 }
 ```
 
-### 6. 常见问题排查
+### 7. 常见问题排查
 
 - 构建提示缺少 `plugin.id` 或 `plugin.class` 时，先确认配置源中已填写
-- 版本为空或异常值时优先补齐 `plugin.version`
-- 本地看到乱码时检查属性文件编码是否为 UTF-8
-- 想确认最终生效值，请比较 `plugin.properties` 文件和 `pf4bootPlugin` 扩展
+- 版本为空或异常值（如 `unspecified`）时，给定显式版本并重试；
+- 本地看到乱码时检查属性文件编码是否为 UTF-8；
+- 仍有差异时，比较以下两个数据源：
+  - `build/generated/pf4boot/plugin.properties`
+  - 构建日志中的 `effective plugin properties`
+- 需要确认优先级时，以 `pf4bootPlugin` 扩展为准。
 
 ### 7. 继续阅读
 
