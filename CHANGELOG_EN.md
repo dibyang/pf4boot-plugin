@@ -9,7 +9,7 @@ All release notes are recorded here. Please update this file before each release
 
 No pending entries yet.
 
-## [1.4.0] - 2026-06-10
+## [1.4.0] - 2026-06-11
 
 ### Added
 - Added bilingual changelogs: `CHANGELOG.md` and `CHANGELOG_EN.md`.
@@ -21,6 +21,7 @@ No pending entries yet.
   - Added extension precedence details, release checklists, and troubleshooting guidance.
 
 ### Fixed
+- Fixed Gradle 7 task input validation failure when `pf4bootPlugin` extension configuration is used without a root `plugin.properties` file.
+- Configured Java compilation to use UTF-8 consistently, avoiding Windows default-encoding issues in Chinese source comments and functional tests.
 - Fixed duplicate section numbering in Developer Guide for local documentation navigation and references.
 - Added pre-release documentation planning/checklist, improving local development consistency.
-

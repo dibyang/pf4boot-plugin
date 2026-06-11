@@ -74,7 +74,7 @@ public class Pf4bootPluginFunctionalTest {
 						"  pluginClass = 'net.xdob.TestPlugin'\n" +
 						"  version = '1.0.0'\n" +
 						"}\n");
-		writeString(new File(projectDir, "plugin.properties"), "");
+		Files.deleteIfExists(new File(projectDir, "plugin.properties").toPath());
 
 		BuildResult result = GradleRunner.create()
 				.forwardOutput()

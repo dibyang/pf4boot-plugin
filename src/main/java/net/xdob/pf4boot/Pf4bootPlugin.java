@@ -149,7 +149,10 @@ public class Pf4bootPlugin implements Plugin<Project> {
 
 		return project.getTasks().register(PLUGIN_TASK_NAME, Zip.class, zip -> {
 			zip.getInputs().property("project.version", String.valueOf(project.getVersion()));
-			zip.getInputs().file(pluginPropertiesFile);
+			zip.getInputs().property(
+					"pf4bootPlugin.propertiesFile",
+					project.getProviders().provider(() -> readOptionalFileContent(pluginPropertiesFile))
+			);
 			zip.getInputs().property("pf4bootPlugin.id", project.getProviders().provider(() -> extension.getId().getOrElse("")));
 			zip.getInputs().property("pf4bootPlugin.pluginClass", project.getProviders().provider(() -> extension.getPluginClass().getOrElse("")));
 			zip.getInputs().property("pf4bootPlugin.version", project.getProviders().provider(() -> extension.getVersion().getOrElse("")));
@@ -239,6 +242,18 @@ public class Pf4bootPlugin implements Plugin<Project> {
 
 		validateRequiredPluginProperties(effectiveProperties);
 		return effectiveProperties;
+	}
+
+	private String readOptionalFileContent(File file) {
+		if (!file.exists()) {
+			return "";
+		}
+
+		try {
+			return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			throw new GradleException("Failed to read plugin.properties: " + file.getAbsolutePath(), e);
+		}
 	}
 
 	private String formatFiles(Configuration configuration) {

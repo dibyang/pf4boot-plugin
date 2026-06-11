@@ -33,6 +33,10 @@ group 'net.xdob.pf4boot'
 sourceCompatibility = project.jdkVersion
 targetCompatibility = project.jdkVersion
 
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
 /**
  * signing.properties 文件内容示例如下
  * signing.keyId=xx
