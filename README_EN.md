@@ -27,7 +27,7 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath "net.xdob.pf4boot:pf4boot-plugin:1.4.1"
+    classpath "net.xdob.pf4boot:pf4boot-plugin:1.5.0"
   }
 }
 ```

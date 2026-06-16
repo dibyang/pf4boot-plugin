@@ -8,6 +8,10 @@
 
 ## [Unreleased]
 
+本版本暂无新增条目。
+
+## [1.5.0] - 2026-06-16
+
 ### 已添加
 - 新增 `platformApi` 本地运行支持：平台 API 可通过 `pluginLocalRuntimeClasspath` 在本地 `JavaExec` 中可见，但默认不进入插件 zip。
 - 新增依赖报告与诊断任务：`pf4bootDependencies`、`checkPluginRuntimeClasspath`。

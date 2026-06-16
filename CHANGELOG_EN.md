@@ -9,6 +9,10 @@ All release notes are recorded here. Please update this file before each release
 
 ## [Unreleased]
 
+No pending entries yet.
+
+## [1.5.0] - 2026-06-16
+
 ### Added
 - Added `platformApi` local runtime support: platform APIs are visible through `pluginLocalRuntimeClasspath` for local `JavaExec` runs but are not packaged into the plugin ZIP by default.
 - Added dependency report and diagnostic tasks: `pf4bootDependencies`, `checkPluginRuntimeClasspath`.
