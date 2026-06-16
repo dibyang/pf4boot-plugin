@@ -1,6 +1,6 @@
 ## pf4boot-plugin
 
-[English](README_EN.md) | [中文](README.md)
+[中文](README.md) | [English](README_EN.md)
 
 pf4boot-plugin 是用于 **pf4boot 插件开发** 的 Gradle 插件（当前支持 Gradle 7.x）。  
 它帮助你在本地快速打包 pf4boot 插件，并把插件元数据与运行时依赖一并生成到产物中。
@@ -99,6 +99,8 @@ pf4bootPlugin{
 - [使用示例（中文）](docs/usage-zh.md)｜[Usage (English)](docs/usage-en.md)
 - [开发者手册（面向插件开发者）/ 使用手册（中文）](docs/developer-guide-zh.md)｜[Developer Guide / Usage Guide (English)](docs/developer-guide-en.md)
 - [改进需求与落地规划（中文）](docs/improvement-plan-zh.md)｜[Improvement Plan (English)](docs/improvement-plan-en.md)
+- [平台运行时依赖与发布可靠性设计（中文）](docs/platform-runtime-design-zh.md)｜[Platform Runtime Design (English)](docs/platform-runtime-design-en.md)
+- [平台运行时依赖实施计划（中文）](docs/platform-runtime-implementation-plan-zh.md)｜[Platform Runtime Implementation Plan (English)](docs/platform-runtime-implementation-plan-en.md)
 
 ### 常见问题（本地开发场景）
 

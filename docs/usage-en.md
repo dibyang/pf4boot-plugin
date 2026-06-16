@@ -1,6 +1,6 @@
 ## pf4boot-plugin Usage (English)
 
-[English](usage-en.md) | [中文](usage-zh.md)
+[中文](usage-zh.md) | [English](usage-en.md)
 
 This is a 5-minute quick start guide to get pf4boot plugin packaging working.
 

@@ -1,5 +1,7 @@
 # Changelog
 
+[中文](CHANGELOG.md) | [English](CHANGELOG_EN.md)
+
 This project follows [Keep a Changelog](https://keepachangelog.com/) and uses
 [Semantic Versioning](https://semver.org/).
 

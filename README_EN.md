@@ -100,6 +100,8 @@ This will:
 - [Usage Examples (English)](docs/usage-en.md) | [中文使用示例](docs/usage-zh.md)
 - [Developer Guide / Usage Guide (English)](docs/developer-guide-en.md) | [中文开发者手册（使用手册）](docs/developer-guide-zh.md)
 - [Improvement Plan (English)](docs/improvement-plan-en.md) | [改进需求与落地规划（中文）](docs/improvement-plan-zh.md)
+- [Platform Runtime Design (English)](docs/platform-runtime-design-en.md) | [平台运行时依赖与发布可靠性设计（中文）](docs/platform-runtime-design-zh.md)
+- [Platform Runtime Implementation Plan (English)](docs/platform-runtime-implementation-plan-en.md) | [平台运行时依赖实施计划（中文）](docs/platform-runtime-implementation-plan-zh.md)
 
 ### Local development notes
 

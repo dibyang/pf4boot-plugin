@@ -1,7 +1,7 @@
 ## pf4boot-plugin Usage Guide (English)
 ### (for developers building pf4boot plugins with this Gradle plugin)
 
-[English](developer-guide-en.md) | [中文](developer-guide-zh.md)
+[中文](developer-guide-zh.md) | [English](developer-guide-en.md)
 
 This is the full reference guide. For quick setup, read [Usage Guide](usage-en.md) first.
 

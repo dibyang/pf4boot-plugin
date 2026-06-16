@@ -1,5 +1,7 @@
 # 变更日志
 
+[中文](CHANGELOG.md) | [English](CHANGELOG_EN.md)
+
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/) 规范，并采用 [语义化版本](https://semver.org/) 进行版本管理。
 
 所有版本发布内容将在此记录；每次发版前请先更新本文件。

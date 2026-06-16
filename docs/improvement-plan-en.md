@@ -1,6 +1,6 @@
 ## pf4boot-plugin Improvement Requirements and Implementation Plan
 
-[English](improvement-plan-en.md) | [中文](improvement-plan-zh.md)
+[中文](improvement-plan-zh.md) | [English](improvement-plan-en.md)
 
 This plan defines the next iteration focused on local developer experience for **Gradle 7.x**.
 
@@ -12,6 +12,7 @@ This plan defines the next iteration focused on local developer experience for *
 - Local usability: UTF-8 property I/O, clearer validation errors, richer package logging.
 - Documentation quality: keep Chinese and English guides aligned for usage flow.
 - Test coverage: add deterministic and failure-path tests.
+- Platform runtime dependency and release reliability: future implementation follows the [Platform Runtime Design](platform-runtime-design-en.md) and is tracked in the [Platform Runtime Implementation Plan](platform-runtime-implementation-plan-en.md).
 
 ### Out of Scope
 
