@@ -18,4 +18,8 @@ interface Pf4bootPluginExtension {
   Property<String> getRequires();
 
   Property<String> getLicense();
+
+  Property<Boolean> getCheckRuntimeClasspathOnCheck();
+
+  Property<String> getDuplicateDependencyPolicy();
 }

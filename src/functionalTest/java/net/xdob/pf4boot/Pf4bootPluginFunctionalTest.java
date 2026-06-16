@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -334,12 +336,301 @@ public class Pf4bootPluginFunctionalTest {
 		);
 	}
 
+	@Test
+	public void shouldExposePlatformApiInPluginLocalRuntimeClasspath() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldExposePlatformApiInPluginLocalRuntimeClasspath");
+		Files.createDirectories(projectDir.toPath());
+		createMavenJar(projectDir, "org.slf4j", "slf4j-api", "2.0.7", "");
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-platform-local-runtime'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"repositories { maven { url = uri('repo') } }\n" +
+						"dependencies { platformApi 'org.slf4j:slf4j-api:2.0.7' }\n" +
+						"tasks.register('printLocalRuntime') {\n" +
+						"  doLast { println configurations.pluginLocalRuntimeClasspath.files.collect { it.name }.sort().join(',') }\n" +
+						"}\n");
+		writePluginProperties(projectDir, "platform-local-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("printLocalRuntime")
+				.withProjectDir(projectDir)
+				.build();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("slf4j-api-2.0.7.jar"));
+	}
+
+	@Test
+	public void shouldNotPackagePlatformApiByDefault() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldNotPackagePlatformApiByDefault");
+		Files.createDirectories(projectDir.toPath());
+		createMavenJar(projectDir, "org.slf4j", "slf4j-api", "2.0.7", "");
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-platform-not-packaged'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"version = '1.0.0'\n" +
+						"repositories { maven { url = uri('repo') } }\n" +
+						"dependencies { platformApi 'org.slf4j:slf4j-api:2.0.7' }\n");
+		writePluginProperties(projectDir, "platform-not-packaged-plugin", "1.0.0");
+
+		GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4boot")
+				.withProjectDir(projectDir)
+				.build();
+
+		File zipFile = new File(projectDir, "build/libs/pf4boot-platform-not-packaged-1.0.0.zip");
+		List<String> zipEntries = listZipEntries(zipFile);
+		assertTrue(zipEntries.contains("lib/pf4boot-platform-not-packaged-1.0.0.jar"));
+		for (String entry : zipEntries) {
+			assertTrue(entry, !entry.contains("slf4j-api"));
+		}
+	}
+
+	@Test
+	public void shouldKeepBundleOnlyNonTransitiveWhenReportingPackagedDependencies() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldKeepBundleOnlyNonTransitiveWhenReportingPackagedDependencies");
+		Files.createDirectories(projectDir.toPath());
+		createMavenJar(projectDir, "demo", "transitive-lib", "1.0.0", "");
+		createMavenJar(projectDir, "demo", "direct-lib", "1.0.0",
+				"<dependencies><dependency><groupId>demo</groupId><artifactId>transitive-lib</artifactId><version>1.0.0</version></dependency></dependencies>");
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-bundle-only-report'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"repositories { maven { url = uri('repo') } }\n" +
+						"dependencies { bundleOnly 'demo:direct-lib:1.0.0' }\n");
+		writePluginProperties(projectDir, "bundle-only-report-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4bootDependencies")
+				.withProjectDir(projectDir)
+				.build();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("demo:direct-lib:1.0.0"));
+		assertTrue(result.getOutput(), !result.getOutput().contains("demo:transitive-lib:1.0.0"));
+	}
+
+	@Test
+	public void shouldReportPackagedPlatformAndLocalRuntimeDependencies() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldReportPackagedPlatformAndLocalRuntimeDependencies");
+		Files.createDirectories(projectDir.toPath());
+		createMavenJar(projectDir, "org.slf4j", "slf4j-api", "2.0.7", "");
+		createMavenJar(projectDir, "demo", "bundle-lib", "1.0.0", "");
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-dependency-report'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"repositories { maven { url = uri('repo') } }\n" +
+						"dependencies {\n" +
+						"  platformApi 'org.slf4j:slf4j-api:2.0.7'\n" +
+						"  bundle 'demo:bundle-lib:1.0.0'\n" +
+						"}\n");
+		writePluginProperties(projectDir, "dependency-report-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("pf4bootDependencies")
+				.withProjectDir(projectDir)
+				.build();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("Packaged bundle dependencies"));
+		assertTrue(result.getOutput(), result.getOutput().contains("Platform dependencies"));
+		assertTrue(result.getOutput(), result.getOutput().contains("Local runtime dependencies"));
+		assertTrue(result.getOutput(), result.getOutput().contains("demo:bundle-lib:1.0.0"));
+		assertTrue(result.getOutput(), result.getOutput().contains("org.slf4j:slf4j-api:2.0.7"));
+	}
+
+	@Test
+	public void shouldWarnWhenPackagedDependencyDuplicatesPlatformDependency() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldWarnWhenPackagedDependencyDuplicatesPlatformDependency");
+		Files.createDirectories(projectDir.toPath());
+		createMavenJar(projectDir, "org.slf4j", "slf4j-api", "2.0.7", "");
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-duplicate-report'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"repositories { maven { url = uri('repo') } }\n" +
+						"dependencies {\n" +
+						"  platformApi 'org.slf4j:slf4j-api:2.0.7'\n" +
+						"  bundle 'org.slf4j:slf4j-api:2.0.7'\n" +
+						"}\n");
+		writePluginProperties(projectDir, "duplicate-report-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("checkPluginRuntimeClasspath")
+				.withProjectDir(projectDir)
+				.build();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("Duplicate pf4boot dependency"));
+	}
+
+	@Test
+	public void shouldReportClassReferenceForKnownMissingPlatformApi() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldReportClassReferenceForKnownMissingPlatformApi");
+		Files.createDirectories(projectDir.toPath());
+		createJarWithClassReference(new File(projectDir, "needs-slf4j.jar"), "org/slf4j/LoggerFactory");
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-bytecode-diagnostic'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"dependencies { bundle files('needs-slf4j.jar') }\n");
+		writePluginProperties(projectDir, "bytecode-diagnostic-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("checkPluginRuntimeClasspath")
+				.withProjectDir(projectDir)
+				.buildAndFail();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("org.slf4j:slf4j-api"));
+		assertTrue(result.getOutput(), result.getOutput().contains("needs-slf4j.jar"));
+	}
+
+	@Test
+	public void shouldVerifyReleaseReadinessForCurrentVersion() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldVerifyReleaseReadinessForCurrentVersion");
+		Files.createDirectories(new File(projectDir, "docs").toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-release-ready'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"version = '1.0.0'\n");
+		writePluginProperties(projectDir, "release-ready-plugin", "1.0.0");
+		writeReleaseDocs(projectDir, "1.0.0");
+
+		GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("verifyReleaseReadiness")
+				.withProjectDir(projectDir)
+				.build();
+	}
+
+	@Test
+	public void shouldFailReleaseReadinessWhenVersionIsSnapshot() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldFailReleaseReadinessWhenVersionIsSnapshot");
+		Files.createDirectories(new File(projectDir, "docs").toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-release-snapshot'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"version = '1.0.0-SNAPSHOT'\n");
+		writePluginProperties(projectDir, "release-snapshot-plugin", "1.0.0-SNAPSHOT");
+		writeReleaseDocs(projectDir, "1.0.0-SNAPSHOT");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("verifyReleaseReadiness")
+				.withProjectDir(projectDir)
+				.buildAndFail();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("must not be SNAPSHOT"));
+	}
+
+	@Test
+	public void shouldFailReleaseTagWhenTagDoesNotPointToHead() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldFailReleaseTagWhenTagDoesNotPointToHead");
+		Files.createDirectories(projectDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"), "rootProject.name = 'pf4boot-release-tag'");
+		writeString(new File(projectDir, "build.gradle"),
+				"plugins {\n" +
+						"  id('java')\n" +
+						"  id('net.xdob.pf4boot-plugin')\n" +
+						"}\n" +
+						"version = '1.0.0'\n");
+		writePluginProperties(projectDir, "release-tag-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments("verifyReleaseTag")
+				.withProjectDir(projectDir)
+				.buildAndFail();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("Release tag v1.0.0 does not point to HEAD"));
+	}
+
 
   private void writeString(File file, String string) throws IOException {
     try (Writer writer = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
       writer.write(string);
     }
   }
+
+	private void writePluginProperties(File projectDir, String pluginId, String version) throws IOException {
+		writeString(new File(projectDir, "plugin.properties"),
+				"plugin.id = " + pluginId + "\n" +
+						"plugin.class = net.xdob.TestPlugin\n" +
+						"plugin.version = " + version + "\n");
+	}
+
+	private void writeReleaseDocs(File projectDir, String version) throws IOException {
+		writeString(new File(projectDir, "CHANGELOG.md"), "## [" + version + "]\n");
+		writeString(new File(projectDir, "CHANGELOG_EN.md"), "## [" + version + "]\n");
+		writeString(new File(projectDir, "README.md"), "classpath \"net.xdob.pf4boot:pf4boot-plugin:" + version + "\"\n");
+		writeString(new File(projectDir, "README_EN.md"), "classpath \"net.xdob.pf4boot:pf4boot-plugin:" + version + "\"\n");
+		writeString(new File(projectDir, "docs/usage-zh.md"), "classpath \"net.xdob.pf4boot:pf4boot-plugin:" + version + "\"\n");
+		writeString(new File(projectDir, "docs/usage-en.md"), "classpath \"net.xdob.pf4boot:pf4boot-plugin:" + version + "\"\n");
+	}
+
+	private void createMavenJar(File projectDir, String group, String artifact, String version, String pomBody) throws IOException {
+		File artifactDir = new File(projectDir, "repo/" + group.replace('.', '/') + "/" + artifact + "/" + version);
+		Files.createDirectories(artifactDir.toPath());
+		writeString(new File(artifactDir, artifact + "-" + version + ".pom"),
+				"<project><modelVersion>4.0.0</modelVersion>" +
+						"<groupId>" + group + "</groupId>" +
+						"<artifactId>" + artifact + "</artifactId>" +
+						"<version>" + version + "</version>" +
+						pomBody +
+						"</project>");
+		createJarWithClassReference(new File(artifactDir, artifact + "-" + version + ".jar"), artifact.replace('-', '/') + "/Marker");
+	}
+
+	private void createJarWithClassReference(File jarFile, String reference) throws IOException {
+		try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(jarFile.toPath()))) {
+			JarEntry entry = new JarEntry("demo/Marker.class");
+			jar.putNextEntry(entry);
+			jar.write(("not-a-real-class " + reference).getBytes(StandardCharsets.UTF_8));
+			jar.closeEntry();
+		}
+	}
 
 	private List<String> listZipEntries(File zipFile) throws IOException {
 		List<String> entryNames = new ArrayList<>();

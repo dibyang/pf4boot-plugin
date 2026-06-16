@@ -8,7 +8,14 @@
 
 ## [Unreleased]
 
-本版本暂无新增条目。
+### 已添加
+- 新增 `platformApi` 本地运行支持：平台 API 可通过 `pluginLocalRuntimeClasspath` 在本地 `JavaExec` 中可见，但默认不进入插件 zip。
+- 新增依赖报告与诊断任务：`pf4bootDependencies`、`checkPluginRuntimeClasspath`。
+- 新增重复依赖策略 `duplicateDependencyPolicy`，支持 `warn` / `fail` / `ignore`，默认 `warn`。
+- 新增 `checkRuntimeClasspathOnCheck` 开关，可选择把运行时检查接入 `check`。
+- 新增发布前验证任务：`verifyReleaseReadiness`、`verifyReleaseTag`。
+- 新增最小版字节码引用诊断，用于提示已知缺失类（例如 `org/slf4j/LoggerFactory`）对应的建议依赖。
+- 新增双语故障排查手册，并同步更新 README、Usage、开发者手册和平台运行时实施计划。
 
 ## [1.4.1] - 2026-06-11
 

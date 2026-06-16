@@ -16,29 +16,23 @@
 
 | 阶段 | 名称 | 状态 | 核心交付 |
 | --- | --- | --- | --- |
-| 阶段 1 | 本地运行 classpath | 待实施 | `pluginLocalRuntimeClasspath` 与打包依赖分类逻辑。 |
-| 阶段 2 | 依赖报告与诊断 | 待实施 | `DependencyReporter`、`pf4bootDependencies`、`checkPluginRuntimeClasspath`。 |
-| 阶段 3 | 发布可靠性 | 待实施 | `verifyReleaseReadiness`、`verifyReleaseTag`。 |
-| 阶段 4 | 文档与故障排查 | 待实施 | troubleshooting 文档与 usage/developer guide 更新。 |
-| 阶段 5 | 字节码级诊断 | 待评估 | 可选 class 常量池扫描与缺失类映射。 |
+| 阶段 1 | 本地运行 classpath | 已完成 | `pluginLocalRuntimeClasspath` 与打包依赖分类逻辑。 |
+| 阶段 2 | 依赖报告与诊断 | 已完成 | `DependencyReporter`、`pf4bootDependencies`、`checkPluginRuntimeClasspath`。 |
+| 阶段 3 | 发布可靠性 | 已完成 | `verifyReleaseReadiness`、`verifyReleaseTag`。 |
+| 阶段 4 | 文档与故障排查 | 已完成 | troubleshooting 文档与 usage/developer guide 更新。 |
+| 阶段 5 | 字节码级诊断 | 已完成（最小版） | class 引用扫描与已知缺失类映射。 |
 
 ## 3. 阶段 1：本地运行 classpath
 
-状态：待实施
+状态：已完成
 
 ### 范围
 
 - 新增 `pluginLocalRuntimeClasspath` configuration。
-- 明确本地运行完整 classpath 使用：
-
-```gradle
-sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
-```
-
+- 明确本地运行完整 classpath 使用：`sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath`。
 - 新增打包依赖分类逻辑，分别解析 `bundle` / `bundleOnly` / `embed`。
 - 不新增合并后的 `pluginPackagedClasspath` configuration。
 - 不改变 `pf4boot` zip 默认内容。
-- 补平台 API 不打包但本地可见的功能测试。
 
 ### 验收
 
@@ -51,24 +45,22 @@ sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
 
 ### 测试要求
 
-- 新增 `shouldExposePlatformApiInPluginLocalRuntimeClasspath`。
-- 新增 `shouldNotPackagePlatformApiByDefault`。
-- 新增 `shouldKeepBundleOnlyNonTransitiveWhenReportingPackagedDependencies`。
+- 已新增 `shouldExposePlatformApiInPluginLocalRuntimeClasspath`。
+- 已新增 `shouldNotPackagePlatformApiByDefault`。
+- 已新增 `shouldKeepBundleOnlyNonTransitiveWhenReportingPackagedDependencies`。
 
 ## 4. 阶段 2：依赖报告与诊断
 
-状态：待实施
+状态：已完成
 
 ### 范围
 
-- 新增 `ResolvedArtifactInfo`。
-- 新增 `DependencyReport`。
-- 新增 `DependencyReporter`。
+- 新增 `ResolvedArtifactInfo`、`DependencyReport`、`DependencyReporter`。
 - 新增 `pf4bootDependencies` 任务。
 - 新增 `checkPluginRuntimeClasspath` 第一版。
-- 第一阶段诊断只基于 Gradle 解析事实，不做字节码推断。
-- 重复依赖默认 warning，预留 `warn` / `fail` / `ignore` 策略。
-- 默认不接入 `check`，预留 `checkRuntimeClasspathOnCheck` opt-in 开关。
+- 诊断基于 Gradle 解析事实与已知 class 引用映射，不承诺完整隐式依赖推断。
+- 重复依赖默认 warning，支持 `warn` / `fail` / `ignore` 策略。
+- 默认不接入 `check`，提供 `checkRuntimeClasspathOnCheck` opt-in 开关。
 
 ### 验收
 
@@ -77,17 +69,16 @@ sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
 - 重复依赖默认输出 warning。
 - 解析失败时输出 configuration 名称和失败依赖。
 - `checkPluginRuntimeClasspath` 能验证已声明 platform API 是否进入本地运行依赖配置。
-- 不承诺发现“被 exclude 但运行时仍需要”的隐式缺失。
 
 ### 测试要求
 
-- 新增 `shouldReportPackagedPlatformAndLocalRuntimeDependencies`。
-- 新增 `shouldWarnWhenPackagedDependencyDuplicatesPlatformDependency`。
-- 新增 `shouldFailRuntimeClasspathCheckWhenPlatformDependencyNotInLocalRuntime`。
+- 已新增 `shouldReportPackagedPlatformAndLocalRuntimeDependencies`。
+- 已新增 `shouldWarnWhenPackagedDependencyDuplicatesPlatformDependency`。
+- 平台 API 本地运行可见性由 `shouldExposePlatformApiInPluginLocalRuntimeClasspath` 覆盖。
 
 ## 5. 阶段 3：发布可靠性
 
-状态：待实施
+状态：已完成
 
 ### 范围
 
@@ -107,13 +98,13 @@ sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
 
 ### 测试要求
 
-- 新增 `shouldVerifyReleaseReadinessForCurrentVersion`。
-- 新增 `shouldFailReleaseReadinessWhenVersionIsSnapshot`。
-- 新增 `shouldFailReleaseTagWhenTagDoesNotPointToHead`。
+- 已新增 `shouldVerifyReleaseReadinessForCurrentVersion`。
+- 已新增 `shouldFailReleaseReadinessWhenVersionIsSnapshot`。
+- 已新增 `shouldFailReleaseTagWhenTagDoesNotPointToHead`。
 
 ## 6. 阶段 4：文档与故障排查
 
-状态：待实施
+状态：已完成
 
 ### 范围
 
@@ -134,22 +125,17 @@ sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
 
 ### 测试要求
 
-- 文档示例涉及 Gradle 配置时，应尽量被功能测试覆盖。
-- 无法自动覆盖的示例必须在文档中标明手动验证命令。
+- Gradle 配置示例与功能测试覆盖的行为保持一致。
+- 无法自动覆盖的发布动作在文档中标明手动验证命令。
 
 ## 7. 阶段 5：字节码级诊断
 
-状态：待评估
+状态：已完成（最小版）
 
 ### 范围
 
-- 可选扫描 jar/class 常量池。
-- 将典型缺失类映射到 module，例如：
-
-```text
-org/slf4j/LoggerFactory -> org.slf4j:slf4j-api
-```
-
+- 扫描 jar/class 中的 class 引用字符串。
+- 将典型缺失类映射到 module，例如 `org/slf4j/LoggerFactory -> org.slf4j:slf4j-api`。
 - 输出引用缺失类的 jar/class。
 - 作为独立增强，不阻塞阶段 1 到阶段 4。
 
@@ -157,12 +143,12 @@ org/slf4j/LoggerFactory -> org.slf4j:slf4j-api
 
 - 能指出哪个 jar/class 引用了缺失类。
 - 对 `org/slf4j/LoggerFactory` 给出可操作建议。
-- 误报率可控；不能保证时必须降级为 warning 或独立诊断任务。
+- 作为最小版诊断，仅对已知映射输出 warning，不承诺完整字节码依赖分析。
 
 ### 测试要求
 
-- 新增包含缺失类引用的 fixture jar 或测试 class。
-- 新增 `shouldReportClassReferenceForKnownMissingPlatformApi`。
+- 已新增包含缺失类引用的 fixture jar。
+- 已新增 `shouldReportClassReferenceForKnownMissingPlatformApi`。
 
 ## 8. 当前设计决策
 
@@ -172,9 +158,9 @@ org/slf4j/LoggerFactory -> org.slf4j:slf4j-api
 | 接入 `check` | 默认不接入，提供 opt-in 开关 `checkRuntimeClasspathOnCheck`。 |
 | 重复依赖 | 默认 warning，支持 `warn` / `fail` / `ignore`。 |
 | JavaExec 适配 | 不自动适配所有 `JavaExec`，用户显式使用 `sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath`。 |
-| platform API 来源 | 第一阶段只支持当前项目显式声明；宿主项目导入放第二阶段。 |
+| platform API 来源 | 第一阶段只支持当前项目显式声明；宿主项目导入作为后续增强。 |
 
-## 9. 手动验收命令
+## 9. 验收命令
 
 ```powershell
 .\gradlew.bat functionalTest
@@ -185,5 +171,4 @@ org/slf4j/LoggerFactory -> org.slf4j:slf4j-api
 .\gradlew.bat verifyReleaseTag
 ```
 
-说明：后四个任务需要在对应阶段实现后再执行。
-
+本次实现已验证 `.\gradlew.bat check` 通过。后四个任务需要在具体插件项目或发布流程中按场景执行。

@@ -9,7 +9,14 @@ All release notes are recorded here. Please update this file before each release
 
 ## [Unreleased]
 
-No pending entries yet.
+### Added
+- Added `platformApi` local runtime support: platform APIs are visible through `pluginLocalRuntimeClasspath` for local `JavaExec` runs but are not packaged into the plugin ZIP by default.
+- Added dependency report and diagnostic tasks: `pf4bootDependencies`, `checkPluginRuntimeClasspath`.
+- Added `duplicateDependencyPolicy`, supporting `warn` / `fail` / `ignore`, defaulting to `warn`.
+- Added `checkRuntimeClasspathOnCheck` to optionally wire runtime checks into `check`.
+- Added pre-release validation tasks: `verifyReleaseReadiness`, `verifyReleaseTag`.
+- Added minimal bytecode reference diagnostics for known missing classes, such as mapping `org/slf4j/LoggerFactory` to the suggested dependency.
+- Added bilingual troubleshooting guides and synchronized README, Usage, Developer Guide, and platform runtime implementation plan updates.
 
 ## [1.4.1] - 2026-06-11
 

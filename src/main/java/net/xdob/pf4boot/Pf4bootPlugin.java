@@ -32,6 +32,8 @@ import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
@@ -48,6 +50,12 @@ public class Pf4bootPlugin implements Plugin<Project> {
 	public static final String BUNDLE_CONFIG_NAME = "bundle";
 	public static final String BUNDLE_ONLY_CONFIG_NAME = "bundleOnly";
 	public static final String EMBED_CONFIG_NAME = "embed";
+	public static final String PLUGIN_LOCAL_RUNTIME_CLASSPATH_CONFIG_NAME = "pluginLocalRuntimeClasspath";
+	public static final String PF4BOOT_DEPENDENCIES_TASK_NAME = "pf4bootDependencies";
+	public static final String CHECK_PLUGIN_RUNTIME_CLASSPATH_TASK_NAME = "checkPluginRuntimeClasspath";
+	public static final String VERIFY_RELEASE_READINESS_TASK_NAME = "verifyReleaseReadiness";
+	public static final String VERIFY_RELEASE_TAG_TASK_NAME = "verifyReleaseTag";
+	public static final String PF4BOOT_INFO_TASK_NAME = "pf4bootInfo";
 
 	/**
 	 * 独立发布/消费 pf4boot zip 的配置。
@@ -113,11 +121,27 @@ public class Pf4bootPlugin implements Plugin<Project> {
 
 		Pf4bootPluginExtension extension =
 				project.getExtensions().create(PF4BOOT_PLUGIN, Pf4bootPluginExtension.class);
+		extension.getCheckRuntimeClasspathOnCheck().convention(false);
+		extension.getDuplicateDependencyPolicy().convention("warn");
+
+		Configuration platformClasspath =
+				project.getConfigurations().getByName(Pf4boot.PLATFORM_CLASSPATH_CONFIG_NAME);
+
+		Configuration pluginLocalRuntimeClasspath =
+				project.getConfigurations().create(PLUGIN_LOCAL_RUNTIME_CLASSPATH_CONFIG_NAME, conf -> {
+					conf.setCanBeConsumed(false);
+					conf.setCanBeResolved(true);
+					conf.setTransitive(true);
+					conf.setVisible(false);
+					conf.setDescription("Local runtime classpath for pf4boot plugin development and diagnostics.");
+				});
+		pluginLocalRuntimeClasspath.extendsFrom(platformClasspath);
 
 		TaskProvider<Zip> pf4bootTask =
 				configurePf4bootTask(project, extension, bundle, bundleOnly, embed);
 
 		configurePf4bootElements(project, pf4bootTask);
+		configureDiagnosticTasks(project, extension, pf4bootTask, bundle, bundleOnly, embed, platformClasspath, pluginLocalRuntimeClasspath);
 	}
 
 	private Properties loadPluginProperties(Project project) {
@@ -293,6 +317,224 @@ public class Pf4bootPlugin implements Plugin<Project> {
 		);
 		ConfigurationPublications publications = pf4bootElements.getOutgoing();
 		publications.artifact(pf4bootTask);
+	}
+
+	private void configureDiagnosticTasks(
+			Project project,
+			Pf4bootPluginExtension extension,
+			TaskProvider<Zip> pf4bootTask,
+			Configuration bundle,
+			Configuration bundleOnly,
+			Configuration embed,
+			Configuration platformClasspath,
+			Configuration pluginLocalRuntimeClasspath
+	) {
+		project.getTasks().register(PF4BOOT_DEPENDENCIES_TASK_NAME, task -> {
+			task.setGroup("help");
+			task.setDescription("Print pf4boot packaged/platform/local runtime dependency report.");
+			task.doLast(t -> {
+				DependencyReport report = buildDependencyReport(bundle, bundleOnly, embed, platformClasspath, pluginLocalRuntimeClasspath);
+				LOG.lifecycle(DependencyReporter.formatReport(report));
+				DependencyReporter.logDuplicateWarnings(LOG, report);
+			});
+		});
+
+		TaskProvider<Task> checkRuntimeTask = project.getTasks().register(CHECK_PLUGIN_RUNTIME_CLASSPATH_TASK_NAME, task -> {
+			task.setGroup("verification");
+			task.setDescription("Check pf4boot plugin local runtime dependency boundaries.");
+			task.doLast(t -> {
+				DependencyReport report = buildDependencyReport(bundle, bundleOnly, embed, platformClasspath, pluginLocalRuntimeClasspath);
+				validateDuplicatePolicy(extension, report);
+				validateMissingPlatformInLocalRuntime(report);
+				validateKnownBytecodeReferences(report);
+				LOG.lifecycle("pf4boot runtime classpath check passed.");
+			});
+		});
+
+		project.afterEvaluate(evaluated -> {
+			if (extension.getCheckRuntimeClasspathOnCheck().getOrElse(false)) {
+				project.getTasks().named("check").configure(task -> task.dependsOn(checkRuntimeTask));
+			}
+		});
+
+		project.getTasks().register(PF4BOOT_INFO_TASK_NAME, task -> {
+			task.setGroup("help");
+			task.setDescription("Print effective pf4boot plugin metadata and dependency counts.");
+			task.doLast(t -> {
+				Properties properties = resolveEffectiveProperties(project, extension);
+				DependencyReport report = buildDependencyReport(bundle, bundleOnly, embed, platformClasspath, pluginLocalRuntimeClasspath);
+				LOG.lifecycle("pf4boot info:\n  id={}\n  class={}\n  version={}\n  zip={}\n  packagedDependencies={}\n  platformDependencies={}\n  localRuntimeDependencies={}",
+						properties.getProperty(PropKeys.PLUGIN_ID),
+						properties.getProperty(PropKeys.PLUGIN_CLASS),
+						properties.getProperty(PropKeys.PLUGIN_VERSION),
+						pf4bootTask.get().getArchiveFile().get().getAsFile().getAbsolutePath(),
+						report.packagedArtifacts().size(),
+						report.getPlatformArtifacts().size(),
+						report.getLocalRuntimeArtifacts().size());
+			});
+		});
+
+		project.getTasks().register(VERIFY_RELEASE_READINESS_TASK_NAME, task -> {
+			task.setGroup("verification");
+			task.setDescription("Verify release version, docs and pf4boot zip content before publishing.");
+			task.dependsOn(pf4bootTask);
+			task.doLast(t -> verifyReleaseReadiness(project, pf4bootTask.get().getArchiveFile().get().getAsFile()));
+		});
+
+		project.getTasks().register(VERIFY_RELEASE_TAG_TASK_NAME, task -> {
+			task.setGroup("verification");
+			task.setDescription("Verify release tag exists and points to current HEAD.");
+			task.doLast(t -> verifyReleaseTag(project));
+		});
+	}
+
+	private DependencyReport buildDependencyReport(
+			Configuration bundle,
+			Configuration bundleOnly,
+			Configuration embed,
+			Configuration platformClasspath,
+			Configuration pluginLocalRuntimeClasspath
+	) {
+		return DependencyReporter.buildReport(bundle, bundleOnly, embed, platformClasspath, pluginLocalRuntimeClasspath);
+	}
+
+	private void validateDuplicatePolicy(Pf4bootPluginExtension extension, DependencyReport report) {
+		String policy = extension.getDuplicateDependencyPolicy().getOrElse("warn").trim().toLowerCase();
+		if ("ignore".equals(policy)) {
+			return;
+		}
+		if ("fail".equals(policy) && !report.getDuplicateModuleKeys().isEmpty()) {
+			throw new GradleException("Duplicate pf4boot dependencies found in packaged and platform classpaths: "
+					+ String.join(", ", report.getDuplicateModuleKeys()));
+		}
+		if (!"warn".equals(policy) && !"fail".equals(policy)) {
+			throw new GradleException("Invalid duplicateDependencyPolicy: " + policy + ". Expected warn, fail, or ignore.");
+		}
+		DependencyReporter.logDuplicateWarnings(LOG, report);
+	}
+
+	private void validateMissingPlatformInLocalRuntime(DependencyReport report) {
+		if (!report.getMissingPlatformArtifactsInLocalRuntime().isEmpty()) {
+			throw new GradleException("Missing platform runtime dependency in pluginLocalRuntimeClasspath:\n"
+					+ report.getMissingPlatformArtifactsInLocalRuntime().stream()
+					.map(artifact -> "- " + artifact.coordinate())
+					.collect(Collectors.joining(System.lineSeparator()))
+					+ System.lineSeparator()
+					+ "Suggested fixes:\n"
+					+ "- keep platformApi(\"<group>:<name>:<version>\") in the plugin project\n"
+					+ "- use sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath for JavaExec/IDE local runs\n"
+					+ "- or declare runtimeOnly(\"<group>:<name>:<version>\") in the standalone runnable library");
+		}
+	}
+
+	private void validateKnownBytecodeReferences(DependencyReport report) {
+		Set<String> availableModuleKeys = new TreeSet<>();
+		report.packagedArtifacts().stream().filter(ResolvedArtifactInfo::hasModuleIdentity).map(ResolvedArtifactInfo::moduleKey).forEach(availableModuleKeys::add);
+		report.getPlatformArtifacts().stream().filter(ResolvedArtifactInfo::hasModuleIdentity).map(ResolvedArtifactInfo::moduleKey).forEach(availableModuleKeys::add);
+		report.getLocalRuntimeArtifacts().stream().filter(ResolvedArtifactInfo::hasModuleIdentity).map(ResolvedArtifactInfo::moduleKey).forEach(availableModuleKeys::add);
+		Set<String> missing = BytecodeDependencyScanner.findMissingKnownModules(report.packagedArtifacts(), availableModuleKeys);
+		if (!missing.isEmpty()) {
+			throw new GradleException("Missing known platform API referenced by packaged bytecode:\n- "
+					+ String.join(System.lineSeparator() + "- ", missing));
+		}
+	}
+
+	private void verifyReleaseReadiness(Project project, File zipFile) {
+		String version = String.valueOf(project.getVersion());
+		if (isNullOrEmpty(version) || version.endsWith("SNAPSHOT")) {
+			throw new GradleException("Release version must be explicit and must not be SNAPSHOT. current=" + version);
+		}
+		assertFileContains(project.file("CHANGELOG.md"), "## [" + version + "]");
+		assertFileContains(project.file("CHANGELOG_EN.md"), "## [" + version + "]");
+		assertFileContains(project.file("README.md"), "pf4boot-plugin:" + version);
+		assertFileContains(project.file("README_EN.md"), "pf4boot-plugin:" + version);
+		assertFileContains(project.file("docs/usage-zh.md"), "pf4boot-plugin:" + version);
+		assertFileContains(project.file("docs/usage-en.md"), "pf4boot-plugin:" + version);
+		assertZipContains(zipFile, "plugin.properties");
+		assertZipHasLib(zipFile);
+	}
+
+	private void verifyReleaseTag(Project project) {
+		String version = String.valueOf(project.getVersion());
+		String tag = "v" + version;
+		String head = runGit(project, "rev-parse", "HEAD");
+		String tagHead = runGit(project, "rev-list", "-n", "1", tag);
+		if (!head.equals(tagHead)) {
+			throw new GradleException("Release tag " + tag + " does not point to HEAD. tag=" + tagHead + ", head=" + head);
+		}
+	}
+
+	private String runGit(Project project, String... args) {
+		try {
+			java.util.List<String> command = new java.util.ArrayList<>();
+			command.add("git");
+			for (String arg : args) {
+				command.add(arg);
+			}
+			Process process = new ProcessBuilder(command)
+					.directory(project.getRootDir())
+					.redirectErrorStream(true)
+					.start();
+			byte[] output = readProcessOutput(process.getInputStream());
+			int exit = process.waitFor();
+			String text = new String(output, StandardCharsets.UTF_8).trim();
+			if (exit != 0) {
+				throw new GradleException("Failed to run git " + String.join(" ", args) + ": " + text);
+			}
+			return text;
+		} catch (IOException | InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new GradleException("Failed to run git command.", e);
+		}
+	}
+
+	private byte[] readProcessOutput(java.io.InputStream input) throws IOException {
+		try {
+			java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+			byte[] buffer = new byte[1024];
+			int read;
+			while ((read = input.read(buffer)) >= 0) {
+				output.write(buffer, 0, read);
+			}
+			return output.toByteArray();
+		} finally {
+			input.close();
+		}
+	}
+
+	private void assertFileContains(File file, String expected) {
+		if (!file.exists()) {
+			throw new GradleException("Required release document does not exist: " + file.getAbsolutePath());
+		}
+		try {
+			String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+			if (!content.contains(expected)) {
+				throw new GradleException("Required release document " + file.getPath() + " does not contain: " + expected);
+			}
+		} catch (IOException e) {
+			throw new GradleException("Failed to read release document: " + file.getAbsolutePath(), e);
+		}
+	}
+
+	private void assertZipContains(File zipFile, String entryName) {
+		try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(zipFile)) {
+			if (zip.getEntry(entryName) == null) {
+				throw new GradleException("Release zip does not contain " + entryName + ": " + zipFile.getAbsolutePath());
+			}
+		} catch (IOException e) {
+			throw new GradleException("Failed to inspect release zip: " + zipFile.getAbsolutePath(), e);
+		}
+	}
+
+	private void assertZipHasLib(File zipFile) {
+		try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(zipFile)) {
+			boolean hasLib = zip.stream().anyMatch(entry -> entry.getName().startsWith("lib/"));
+			if (!hasLib) {
+				throw new GradleException("Release zip does not contain lib/: " + zipFile.getAbsolutePath());
+			}
+		} catch (IOException e) {
+			throw new GradleException("Failed to inspect release zip: " + zipFile.getAbsolutePath(), e);
+		}
 	}
 
 	private boolean isNullOrEmpty(String s) {

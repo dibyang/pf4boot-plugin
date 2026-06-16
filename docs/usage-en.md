@@ -2,7 +2,7 @@
 
 [中文](usage-zh.md) | [English](usage-en.md)
 
-This is a 5-minute quick start guide to get pf4boot plugin packaging working.
+This is a 5-minute quick start guide to get packaging working and to identify the right tasks for local runtime checks, dependency diagnostics, and pre-release validation.
 
 ### 1) Apply the plugin
 
@@ -22,9 +22,7 @@ apply plugin: 'java'
 apply plugin: 'net.xdob.pf4boot-plugin'
 ```
 
-### 2) Configure plugin metadata (choose one)
-
-Option A, `plugin.properties`:
+### 2) Configure plugin metadata
 
 ```properties
 plugin.id=demo-plugin
@@ -33,7 +31,7 @@ plugin.version=1.0.0
 plugin.provider=your-team
 ```
 
-Option B, Gradle extension:
+Or:
 
 ```groovy
 pf4bootPlugin {
@@ -50,76 +48,85 @@ pf4bootPlugin {
 ./gradlew pf4boot
 ```
 
-### 4) Verify output
-
-### 4.1 Built artifact
+Built artifact:
 
 ```text
 build/libs/<project>-<version>.zip
 ```
 
-### 4.2 Archive contents
+The ZIP should contain:
 
-```text
-plugin.properties (at ZIP root)
-lib/<project>-<version>.jar
-lib/* from bundle / bundleOnly / embed
-```
+- `plugin.properties` at the ZIP root
+- `lib/<project>-<version>.jar`
+- dependency jars under `lib/` from `bundle` / `bundleOnly` / `embed`
 
-Check that generated `build/generated/pf4boot/plugin.properties` exists and is the source for packaged metadata.
-
-On Windows PowerShell you can quickly verify:
+On Windows PowerShell:
 
 ```powershell
 Expand-Archive -Path build/libs/<project>-<version>.zip -DestinationPath build/verify -Force
 Get-ChildItem build/verify
 ```
 
-### 5) Dependency groups
-
-#### `bundle`
-
-`bundle` packages a dependency together with its transitive dependencies.
+### 4) Dependency groups
 
 ```groovy
 dependencies {
   bundle "com.squareup.okio:okio:3.0.0"
-}
-```
-
-#### `bundleOnly`
-
-`bundleOnly` packages only directly declared dependencies.
-
-```groovy
-dependencies {
   bundleOnly "org.apache.commons:commons-lang3:3.12.0"
-}
-```
-
-#### `embed`
-
-`embed` is used when you need inlined runtime dependencies during local integration.
-
-```groovy
-dependencies {
   embed project(':shared-lib')
+  platformApi "org.slf4j:slf4j-api:2.0.7"
 }
 ```
 
-#### Local file dependencies
+- `bundle`: packages dependency and transitive dependencies.
+- `bundleOnly`: packages only directly declared dependencies.
+- `embed`: reported separately; by default it is still treated as a packaged dependency.
+- `platformApi`: host-provided APIs needed for local runtime, not packaged into the ZIP by default.
 
-Use `files(...)` when referencing local jars in `build.gradle`.
+### 5) Local JavaExec runtime
 
 ```groovy
-dependencies {
-  bundle files("libs/local-bundle.jar")
-  bundleOnly files("libs/local-bundle-only.jar")
-  embed files("libs/local-embed.jar")
+tasks.register('runPluginLocal', JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
+  mainClass = 'com.example.PluginLocalMain'
 }
 ```
 
-### 6) Local pre-release validation checklist
+The plugin does not auto-modify all `JavaExec` tasks. Users explicitly reference `pluginLocalRuntimeClasspath`.
+
+### 6) Dependency diagnostics
+
+```bash
+./gradlew pf4bootDependencies
+./gradlew checkPluginRuntimeClasspath
+```
+
+Duplicate dependencies warn by default. To fail the check:
+
+```groovy
+pf4bootPlugin {
+  duplicateDependencyPolicy = 'fail'
+}
+```
+
+To wire runtime checks into `check`:
+
+```groovy
+pf4bootPlugin {
+  checkRuntimeClasspathOnCheck = true
+}
+```
+
+### 7) Pre-release validation tasks
+
+```bash
+./gradlew verifyReleaseReadiness
+./gradlew verifyReleaseTag
+```
+
+Both tasks are read-only. They do not create tags, modify versions, or publish artifacts.
+
+### 8) Local pre-release validation checklist
 
 ```text
 ./gradlew pf4boot
@@ -127,12 +134,13 @@ dependencies {
 ├─ build/generated/pf4boot/plugin.properties
 ├─ plugin.id / plugin.class / plugin.version are as expected
 ├─ UTF-8 text fields (description/requires/provider) are not garbled
-└─ bundle / bundleOnly / embed composition is expected
+├─ bundle / bundleOnly / embed composition is expected
+└─ platformApi dependencies are visible locally but not packaged under zip lib/
 ```
 
-If build fails, check the [Troubleshooting](developer-guide-en.md#6-troubleshooting) section.
+If a build fails, start with the [Troubleshooting Guide](troubleshooting-en.md).
 
 ### Next step
 
-- For full usage, dependency rules, and troubleshooting, open:
-- [Usage Guide / Developer Guide (English)](developer-guide-en.md)
+- Full configuration and development flow: [Developer Guide](developer-guide-en.md)
+- Common issue diagnosis: [Troubleshooting Guide](troubleshooting-en.md)

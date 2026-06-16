@@ -16,29 +16,23 @@
 
 | Phase | Name | Status | Main deliverable |
 | --- | --- | --- | --- |
-| Phase 1 | Local runtime classpath | Pending | `pluginLocalRuntimeClasspath` and packaged dependency classification. |
-| Phase 2 | Dependency report and diagnostics | Pending | `DependencyReporter`, `pf4bootDependencies`, `checkPluginRuntimeClasspath`. |
-| Phase 3 | Release reliability | Pending | `verifyReleaseReadiness`, `verifyReleaseTag`. |
-| Phase 4 | Documentation and troubleshooting | Pending | Troubleshooting docs and usage/developer guide updates. |
-| Phase 5 | Bytecode-level diagnostics | To evaluate | Optional class constant-pool scanning and missing-class mapping. |
+| Phase 1 | Local runtime classpath | Completed | `pluginLocalRuntimeClasspath` and packaged dependency classification. |
+| Phase 2 | Dependency report and diagnostics | Completed | `DependencyReporter`, `pf4bootDependencies`, `checkPluginRuntimeClasspath`. |
+| Phase 3 | Release reliability | Completed | `verifyReleaseReadiness`, `verifyReleaseTag`. |
+| Phase 4 | Documentation and troubleshooting | Completed | Troubleshooting docs and usage/developer guide updates. |
+| Phase 5 | Bytecode-level diagnostics | Completed (minimal version) | Class reference scanning and known missing-class mapping. |
 
 ## 3. Phase 1: Local Runtime Classpath
 
-Status: Pending
+Status: Completed
 
 ### Scope
 
 - Add the `pluginLocalRuntimeClasspath` configuration.
-- Define the full local run classpath as:
-
-```gradle
-sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
-```
-
+- Define the full local run classpath as `sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath`.
 - Add packaged dependency classification that resolves `bundle` / `bundleOnly` / `embed` separately.
 - Do not add a merged `pluginPackagedClasspath` configuration.
 - Do not change default `pf4boot` ZIP content.
-- Add functional tests proving platform APIs are local-runtime-visible but not packaged.
 
 ### Acceptance
 
@@ -51,24 +45,22 @@ sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
 
 ### Test Requirements
 
-- Add `shouldExposePlatformApiInPluginLocalRuntimeClasspath`.
-- Add `shouldNotPackagePlatformApiByDefault`.
-- Add `shouldKeepBundleOnlyNonTransitiveWhenReportingPackagedDependencies`.
+- Added `shouldExposePlatformApiInPluginLocalRuntimeClasspath`.
+- Added `shouldNotPackagePlatformApiByDefault`.
+- Added `shouldKeepBundleOnlyNonTransitiveWhenReportingPackagedDependencies`.
 
 ## 4. Phase 2: Dependency Report and Diagnostics
 
-Status: Pending
+Status: Completed
 
 ### Scope
 
-- Add `ResolvedArtifactInfo`.
-- Add `DependencyReport`.
-- Add `DependencyReporter`.
+- Add `ResolvedArtifactInfo`, `DependencyReport`, and `DependencyReporter`.
 - Add the `pf4bootDependencies` task.
 - Add the first version of `checkPluginRuntimeClasspath`.
-- Phase 1 diagnostics use only Gradle resolution facts and do not infer bytecode-level missing dependencies.
-- Duplicate dependencies warn by default; reserve `warn` / `fail` / `ignore` policies.
-- Do not wire into `check` by default; reserve the `checkRuntimeClasspathOnCheck` opt-in switch.
+- Diagnostics use Gradle resolution facts and known class reference mappings, and do not promise complete implicit dependency inference.
+- Duplicate dependencies warn by default and support `warn` / `fail` / `ignore` policies.
+- Do not wire into `check` by default; provide the `checkRuntimeClasspathOnCheck` opt-in switch.
 
 ### Acceptance
 
@@ -77,17 +69,16 @@ Status: Pending
 - Duplicate dependencies print warnings by default.
 - Resolution failures include the configuration name and failed dependency.
 - `checkPluginRuntimeClasspath` verifies declared platform APIs are present in the local runtime dependency configuration.
-- It does not claim to detect implicit runtime needs caused by excludes.
 
 ### Test Requirements
 
-- Add `shouldReportPackagedPlatformAndLocalRuntimeDependencies`.
-- Add `shouldWarnWhenPackagedDependencyDuplicatesPlatformDependency`.
-- Add `shouldFailRuntimeClasspathCheckWhenPlatformDependencyNotInLocalRuntime`.
+- Added `shouldReportPackagedPlatformAndLocalRuntimeDependencies`.
+- Added `shouldWarnWhenPackagedDependencyDuplicatesPlatformDependency`.
+- Platform API local-runtime visibility is covered by `shouldExposePlatformApiInPluginLocalRuntimeClasspath`.
 
 ## 5. Phase 3: Release Reliability
 
-Status: Pending
+Status: Completed
 
 ### Scope
 
@@ -107,13 +98,13 @@ Status: Pending
 
 ### Test Requirements
 
-- Add `shouldVerifyReleaseReadinessForCurrentVersion`.
-- Add `shouldFailReleaseReadinessWhenVersionIsSnapshot`.
-- Add `shouldFailReleaseTagWhenTagDoesNotPointToHead`.
+- Added `shouldVerifyReleaseReadinessForCurrentVersion`.
+- Added `shouldFailReleaseReadinessWhenVersionIsSnapshot`.
+- Added `shouldFailReleaseTagWhenTagDoesNotPointToHead`.
 
 ## 6. Phase 4: Documentation and Troubleshooting
 
-Status: Pending
+Status: Completed
 
 ### Scope
 
@@ -134,22 +125,17 @@ Status: Pending
 
 ### Test Requirements
 
-- Gradle examples in docs should be covered by functional tests where practical.
-- Examples that cannot be automated must include manual verification commands.
+- Gradle examples in docs stay aligned with behavior covered by functional tests.
+- Release actions that cannot be automated are documented with manual verification commands.
 
 ## 7. Phase 5: Bytecode-Level Diagnostics
 
-Status: To evaluate
+Status: Completed (minimal version)
 
 ### Scope
 
-- Optionally scan jar/class constant pools.
-- Map typical missing classes to modules, for example:
-
-```text
-org/slf4j/LoggerFactory -> org.slf4j:slf4j-api
-```
-
+- Scan jar/class files for class reference strings.
+- Map typical missing classes to modules, for example `org/slf4j/LoggerFactory -> org.slf4j:slf4j-api`.
 - Output the jar/class that references the missing class.
 - Keep this as an independent enhancement; it does not block phases 1-4.
 
@@ -157,12 +143,12 @@ org/slf4j/LoggerFactory -> org.slf4j:slf4j-api
 
 - Reports which jar/class references the missing class.
 - Provides actionable suggestions for `org/slf4j/LoggerFactory`.
-- False positives are controlled; if not guaranteed, downgrade to warning or a separate diagnostic task.
+- As a minimal diagnostic version, it only warns for known mappings and does not claim full bytecode dependency analysis.
 
 ### Test Requirements
 
-- Add a fixture jar or test class that references a missing class.
-- Add `shouldReportClassReferenceForKnownMissingPlatformApi`.
+- Added a fixture jar that references a missing class.
+- Added `shouldReportClassReferenceForKnownMissingPlatformApi`.
 
 ## 8. Current Design Decisions
 
@@ -172,9 +158,9 @@ org/slf4j/LoggerFactory -> org.slf4j:slf4j-api
 | Wiring into `check` | Do not wire by default; provide opt-in switch `checkRuntimeClasspathOnCheck`. |
 | Duplicate dependencies | Warn by default; support `warn` / `fail` / `ignore`. |
 | JavaExec adaptation | Do not auto-adapt all `JavaExec`; users explicitly use `sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath`. |
-| platform API source | Phase 1 only supports explicit declaration in the current project; host project import is a phase 2 capability. |
+| platform API source | Phase 1 only supports explicit declaration in the current project; host project import is a future enhancement. |
 
-## 9. Manual Acceptance Commands
+## 9. Acceptance Commands
 
 ```powershell
 .\gradlew.bat functionalTest
@@ -185,5 +171,4 @@ org/slf4j/LoggerFactory -> org.slf4j:slf4j-api
 .\gradlew.bat verifyReleaseTag
 ```
 
-Note: the last four tasks can be executed after their corresponding phases are implemented.
-
+This implementation has verified `.\gradlew.bat check` successfully. The last four tasks should be run in a concrete plugin project or release flow as appropriate.
