@@ -148,18 +148,7 @@ artifacts {
 
 publishing {
     publications {
-        maven(MavenPublication) {
-            groupId = project.group
-            artifactId = project.name
-            version = project.version
-            //如果不定义，则会按照以上默认值执行
-            // 添加源码jar
-            artifact sourceJar
-            // 添加javadocjar
-            artifact javadocJar
-            // 指定要发布的模块
-            from components.java
-
+        withType(MavenPublication).configureEach {
             pom {
                 name = 'pf4boot-plugin'
                 description = "pf4boot插件开发的gradle插件"
@@ -183,15 +172,6 @@ publishing {
                     url = 'https://github.com/dibyang/pf4boot-plugin.git'
                 }
             }
-
-//            versionMapping {
-//                usage('java-api') {
-//                    fromResolutionOf('runtimeClasspath')
-//                }
-//                usage('java-runtime') {
-//                    fromResolutionResult()
-//                }
-//            }
         }
     }
     repositories {
@@ -212,7 +192,7 @@ publishing {
 }
 
 signing {
-    sign publishing.publications.maven
+    sign publishing.publications
 }
 
 
