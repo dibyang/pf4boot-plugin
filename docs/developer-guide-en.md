@@ -64,6 +64,8 @@ dependencies {
 - `embed`: reported separately; by default it is still treated as a packaged dependency and kept open for future strategy-specific behavior.
 - `platformApi`: host-provided APIs that are compile-visible and local-runtime-visible, but not packaged into the ZIP by default.
 
+For project dependencies, `bundle` and `embed` recursively collect `platformApi` from the project dependency chain into plugin local runtime. `bundleOnly` only collects `platformApi` from directly declared projects and does not recurse into transitive projects. These platform APIs are still not packaged into the plugin ZIP.
+
 Do not make plugin projects depend back on an `app-run` project that builds installers and consumes plugin ZIPs. Prefer explicit `platformApi` declarations, or later extract shared declarations into a dedicated `platform-api` / `platform-deps` project.
 
 Non-plugin library projects can also apply `net.xdob.pf4boot` and declare `platformApi`. When a plugin packages that library through `bundle project(':apacheds-lib')`, the library jar is added to the plugin ZIP, while the library's `platformApi` dependencies are added to plugin local runtime but not to the plugin ZIP.

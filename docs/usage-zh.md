@@ -83,6 +83,8 @@ dependencies {
 - `embed`：当前作为独立分组报告，默认仍按打包依赖处理。
 - `platformApi`：宿主平台提供的 API，编译可见、本地运行可见，默认不进入 zip。
 
+当插件打包项目依赖时，`bundle` 与 `embed` 会递归收集项目链路上的 `platformApi` 到 `pluginLocalRuntimeClasspath`，但不会把这些平台 API 打进 zip。`bundleOnly` 只收集直接声明项目的 `platformApi`，不递归收集传递项目的 `platformApi`。
+
 不要为了使用宿主已经提供的 `slf4j-api` 而在插件项目中声明 `implementation`、`bundle` 或 `embed`，否则依赖可能被打进插件包。也不建议插件项目反向依赖包含插件包的 `app-run`，这容易形成构建循环。
 
 ### 5) 本地 JavaExec 运行

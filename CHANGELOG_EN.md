@@ -9,7 +9,12 @@ All release notes are recorded here. Please update this file before each release
 
 ## [Unreleased]
 
-No pending entries yet.
+### Added
+- Added tests for `bundle` / `embed` / `bundleOnly` propagation of packaged library `platformApi`, covering recursive propagation, non-recursive boundaries, and ZIP exclusion.
+
+### Changed
+- `bundle` and `embed` now recursively collect `platformApi` dependencies from packaged project chains, adding them to plugin local runtime but not to the plugin ZIP.
+- `bundleOnly` only collects `platformApi` from directly declared projects and does not recursively collect transitive project `platformApi`, preserving its first-level dependency semantics.
 
 ## [1.6.0] - 2026-06-18
 

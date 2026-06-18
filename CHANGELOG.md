@@ -8,7 +8,12 @@
 
 ## [Unreleased]
 
-本版本暂无新增条目。
+### 已添加
+- 补齐 `bundle` / `embed` / `bundleOnly` 对被打包库项目 `platformApi` 的传播规则测试，覆盖递归传播、非递归边界和 zip 排除行为。
+
+### 已变更
+- `bundle` 与 `embed` 会递归收集被打包项目链路上的 `platformApi` 依赖，加入插件本地运行 classpath 但不打入插件 zip。
+- `bundleOnly` 只收集直接声明项目的 `platformApi`，不递归收集传递项目的 `platformApi`，保持“只处理第一层依赖”的语义。
 
 ## [1.6.0] - 2026-06-18
 

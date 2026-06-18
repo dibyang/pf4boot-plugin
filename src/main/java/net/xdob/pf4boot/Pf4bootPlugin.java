@@ -156,7 +156,10 @@ public class Pf4bootPlugin implements Plugin<Project> {
 			Configuration pluginLocalRuntimeClasspath
 	) {
 		project.afterEvaluate(evaluated -> {
-			Set<Project> bundledProjects = collectBundledProjects(bundle, bundleOnly, embed);
+			Set<Project> bundledProjects = new LinkedHashSet<>();
+			collectBundledProjects(bundle, true, bundledProjects);
+			collectBundledProjects(embed, true, bundledProjects);
+			collectBundledProjects(bundleOnly, false, bundledProjects);
 			for (Project bundledProject : bundledProjects) {
 				if (bundledProject.getConfigurations().findByName(Pf4boot.PLATFORM_API_CONFIG_NAME) == null) {
 					continue;
@@ -170,23 +173,15 @@ public class Pf4bootPlugin implements Plugin<Project> {
 		});
 	}
 
-	private Set<Project> collectBundledProjects(Configuration... configurations) {
-		Set<Project> projects = new LinkedHashSet<>();
-		for (Configuration configuration : configurations) {
-			collectBundledProjects(configuration, projects);
-		}
-		return projects;
-	}
-
-	private void collectBundledProjects(Configuration configuration, Set<Project> projects) {
+	private void collectBundledProjects(Configuration configuration, boolean recursive, Set<Project> projects) {
 		for (Dependency dependency : configuration.getAllDependencies()) {
 			if (dependency instanceof ProjectDependency) {
 				Project dependencyProject = ((ProjectDependency) dependency).getDependencyProject();
-				if (projects.add(dependencyProject)) {
+				if (projects.add(dependencyProject) && recursive) {
 					Configuration runtimeClasspath =
 							dependencyProject.getConfigurations().findByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
 					if (runtimeClasspath != null) {
-						collectBundledProjects(runtimeClasspath, projects);
+						collectBundledProjects(runtimeClasspath, true, projects);
 					}
 				}
 			}

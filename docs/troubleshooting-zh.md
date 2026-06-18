@@ -73,6 +73,8 @@ tasks.register('runPluginLocal', JavaExec) {
 
 如果缺失类来自被插件打包的库项目，例如 `apacheds-lib`，应在该库项目中应用 `net.xdob.pf4boot` 并声明 `platformApi`。插件通过 `bundle project(':apacheds-lib')` 打包库 jar 时，会自动把库项目的 `platformApi` 加入插件本地运行 classpath，但不会打进 zip。
 
+如果库项目链路中还有更深层的项目依赖，`bundle` 与 `embed` 会递归传播这些项目上的 `platformApi`。`bundleOnly` 只处理直接声明的项目；如果本地运行缺少传递项目的平台 API，请改用 `bundle` / `embed`，或在插件项目中显式声明所需的 `platformApi`。
+
 ## 3. `plugin.properties` 不存在
 
 ### 现象

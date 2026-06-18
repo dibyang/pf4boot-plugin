@@ -83,6 +83,8 @@ dependencies {
 - `embed`: reported separately; by default it is still treated as a packaged dependency.
 - `platformApi`: host-provided APIs that are compile-visible and local-runtime-visible, but not packaged into the ZIP by default.
 
+When a plugin packages project dependencies, `bundle` and `embed` recursively collect `platformApi` from the project dependency chain into `pluginLocalRuntimeClasspath`, without packaging those platform APIs into the ZIP. `bundleOnly` only collects `platformApi` from directly declared projects and does not recursively collect transitive project `platformApi`.
+
 Do not declare host-provided `slf4j-api` through `implementation`, `bundle`, or `embed` in plugin projects, because it may be packaged into the plugin ZIP. Also avoid reverse dependency on an `app-run` project that packages plugins; that can create build cycles.
 
 ### 5) Local JavaExec runtime

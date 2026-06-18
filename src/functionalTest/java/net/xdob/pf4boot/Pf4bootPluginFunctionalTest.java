@@ -534,6 +534,130 @@ public class Pf4bootPluginFunctionalTest {
 	}
 
 	@Test
+	public void shouldNotCollectTransitiveProjectPlatformApiForBundleOnly() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldNotCollectTransitiveProjectPlatformApiForBundleOnly");
+		File platformSourceDir = new File(projectDir, "slf4j-api/src/main/java/org/slf4j");
+		Files.createDirectories(platformSourceDir.toPath());
+		Files.createDirectories(new File(projectDir, "common-lib").toPath());
+		Files.createDirectories(new File(projectDir, "apacheds-lib").toPath());
+		Files.createDirectories(new File(projectDir, "plugin-demo").toPath());
+
+		writeString(new File(projectDir, "settings.gradle"),
+				"rootProject.name = 'pf4boot-bundle-only-platform-api-contract'\n" +
+						"include 'slf4j-api', 'common-lib', 'apacheds-lib', 'plugin-demo'\n");
+		writeString(new File(projectDir, "build.gradle"), "");
+		writeString(new File(projectDir, "slf4j-api/build.gradle"),
+				"plugins { id 'java-library' }\n" +
+						"group = 'org.slf4j'\n" +
+						"version = '2.0.7'\n");
+		writeString(new File(platformSourceDir, "Logger.java"),
+				"package org.slf4j;\n" +
+						"public interface Logger {\n" +
+						"  void info(String message);\n" +
+						"}\n");
+		writeString(new File(projectDir, "common-lib/build.gradle"),
+				"plugins {\n" +
+						"  id 'java-library'\n" +
+						"  id 'net.xdob.pf4boot'\n" +
+						"}\n" +
+						"group = 'demo'\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { platformApi project(':slf4j-api') }\n");
+		writeString(new File(projectDir, "apacheds-lib/build.gradle"),
+				"plugins { id 'java-library' }\n" +
+						"group = 'demo'\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { implementation project(':common-lib') }\n");
+		writeString(new File(projectDir, "plugin-demo/build.gradle"),
+				"plugins {\n" +
+						"  id 'java'\n" +
+						"  id 'net.xdob.pf4boot-plugin'\n" +
+						"}\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { bundleOnly project(':apacheds-lib') }\n" +
+						"tasks.register('printPluginLocalRuntime') {\n" +
+						"  doLast { println 'PLUGIN_LOCAL_RUNTIME=' + configurations.pluginLocalRuntimeClasspath.files.collect { it.name }.sort().join(',') }\n" +
+						"}\n");
+		writePluginProperties(new File(projectDir, "plugin-demo"), "bundle-only-platform-api-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments(":plugin-demo:printPluginLocalRuntime", ":plugin-demo:pf4boot")
+				.withProjectDir(projectDir)
+				.build();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("PLUGIN_LOCAL_RUNTIME="));
+		assertTrue(result.getOutput(), !result.getOutput().contains("slf4j-api-2.0.7.jar"));
+		File zipFile = new File(projectDir, "plugin-demo/build/libs/plugin-demo-1.0.0.zip");
+		List<String> zipEntries = listZipEntries(zipFile);
+		assertTrue(zipEntries.contains("lib/apacheds-lib-1.0.0.jar"));
+		for (String entry : zipEntries) {
+			assertTrue(entry, !entry.contains("common-lib"));
+			assertTrue(entry, !entry.contains("slf4j-api"));
+		}
+	}
+
+	@Test
+	public void shouldCollectTransitiveProjectPlatformApiForBundleAndEmbedWithoutPackagingIt() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldCollectTransitiveProjectPlatformApiForBundleAndEmbedWithoutPackagingIt");
+		File platformSourceDir = new File(projectDir, "slf4j-api/src/main/java/org/slf4j");
+		Files.createDirectories(platformSourceDir.toPath());
+		Files.createDirectories(new File(projectDir, "common-lib").toPath());
+		Files.createDirectories(new File(projectDir, "apacheds-lib").toPath());
+		Files.createDirectories(new File(projectDir, "plugin-bundle").toPath());
+		Files.createDirectories(new File(projectDir, "plugin-embed").toPath());
+
+		writeString(new File(projectDir, "settings.gradle"),
+				"rootProject.name = 'pf4boot-transitive-platform-api-contract'\n" +
+						"include 'slf4j-api', 'common-lib', 'apacheds-lib', 'plugin-bundle', 'plugin-embed'\n");
+		writeString(new File(projectDir, "build.gradle"), "");
+		writeString(new File(projectDir, "slf4j-api/build.gradle"),
+				"plugins { id 'java-library' }\n" +
+						"group = 'org.slf4j'\n" +
+						"version = '2.0.7'\n");
+		writeString(new File(platformSourceDir, "Logger.java"),
+				"package org.slf4j;\n" +
+						"public interface Logger {\n" +
+						"  void info(String message);\n" +
+						"}\n");
+		writeString(new File(projectDir, "common-lib/build.gradle"),
+				"plugins {\n" +
+						"  id 'java-library'\n" +
+						"  id 'net.xdob.pf4boot'\n" +
+						"}\n" +
+						"group = 'demo'\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { platformApi project(':slf4j-api') }\n");
+		writeString(new File(projectDir, "apacheds-lib/build.gradle"),
+				"plugins { id 'java-library' }\n" +
+						"group = 'demo'\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { implementation project(':common-lib') }\n");
+		writePluginProjectForTransitivePlatformApi(projectDir, "plugin-bundle", "bundle");
+		writePluginProjectForTransitivePlatformApi(projectDir, "plugin-embed", "embed");
+		writePluginProperties(new File(projectDir, "plugin-bundle"), "bundle-transitive-platform-api-plugin", "1.0.0");
+		writePluginProperties(new File(projectDir, "plugin-embed"), "embed-transitive-platform-api-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments(
+						":plugin-bundle:printPluginLocalRuntime",
+						":plugin-embed:printPluginLocalRuntime",
+						":plugin-bundle:pf4boot",
+						":plugin-embed:pf4boot"
+				)
+				.withProjectDir(projectDir)
+				.build();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("plugin-bundle_LOCAL_RUNTIME=slf4j-api-2.0.7.jar"));
+		assertTrue(result.getOutput(), result.getOutput().contains("plugin-embed_LOCAL_RUNTIME=slf4j-api-2.0.7.jar"));
+		assertZipContainsLibraryButNotPlatformApi(new File(projectDir, "plugin-bundle/build/libs/plugin-bundle-1.0.0.zip"));
+		assertZipContainsLibraryButNotPlatformApi(new File(projectDir, "plugin-embed/build/libs/plugin-embed-1.0.0.zip"));
+	}
+
+	@Test
 	public void shouldNotPackagePlatformApiByDefault() throws IOException {
 		File projectDir = new File("build/functionalTest/shouldNotPackagePlatformApiByDefault");
 		Files.createDirectories(projectDir.toPath());
@@ -776,6 +900,27 @@ public class Pf4bootPluginFunctionalTest {
 		writeString(new File(projectDir, "README_EN.md"), "classpath \"net.xdob.pf4boot:pf4boot-plugin:" + version + "\"\n");
 		writeString(new File(projectDir, "docs/usage-zh.md"), "classpath \"net.xdob.pf4boot:pf4boot-plugin:" + version + "\"\n");
 		writeString(new File(projectDir, "docs/usage-en.md"), "classpath \"net.xdob.pf4boot:pf4boot-plugin:" + version + "\"\n");
+	}
+
+	private void writePluginProjectForTransitivePlatformApi(File projectDir, String projectName, String dependencyGroup) throws IOException {
+		writeString(new File(projectDir, projectName + "/build.gradle"),
+				"plugins {\n" +
+						"  id 'java'\n" +
+						"  id 'net.xdob.pf4boot-plugin'\n" +
+						"}\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { " + dependencyGroup + " project(':apacheds-lib') }\n" +
+						"tasks.register('printPluginLocalRuntime') {\n" +
+						"  doLast { println project.name + '_LOCAL_RUNTIME=' + configurations.pluginLocalRuntimeClasspath.files.collect { it.name }.sort().join(',') }\n" +
+						"}\n");
+	}
+
+	private void assertZipContainsLibraryButNotPlatformApi(File zipFile) throws IOException {
+		List<String> zipEntries = listZipEntries(zipFile);
+		assertTrue(zipEntries.contains("lib/apacheds-lib-1.0.0.jar"));
+		for (String entry : zipEntries) {
+			assertTrue(entry, !entry.contains("slf4j-api"));
+		}
 	}
 
 	private void createMavenJar(File projectDir, String group, String artifact, String version, String pomBody) throws IOException {
