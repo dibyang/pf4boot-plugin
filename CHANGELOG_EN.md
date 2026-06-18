@@ -9,6 +9,10 @@ All release notes are recorded here. Please update this file before each release
 
 ## [Unreleased]
 
+No pending entries yet.
+
+## [1.7.0] - 2026-06-18
+
 ### Added
 - Added tests for `bundle` / `embed` / `bundleOnly` propagation of packaged library `platformApi`, covering recursive propagation, non-recursive boundaries, and ZIP exclusion.
 

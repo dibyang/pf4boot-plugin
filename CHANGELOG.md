@@ -8,6 +8,10 @@
 
 ## [Unreleased]
 
+本版本暂无新增条目。
+
+## [1.7.0] - 2026-06-18
+
 ### 已添加
 - 补齐 `bundle` / `embed` / `bundleOnly` 对被打包库项目 `platformApi` 的传播规则测试，覆盖递归传播、非递归边界和 zip 排除行为。
 
