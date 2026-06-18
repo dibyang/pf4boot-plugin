@@ -6,6 +6,8 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationPublications;
+import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.attributes.Category;
 import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.attributes.Usage;
@@ -31,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.LinkedHashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
@@ -136,12 +139,58 @@ public class Pf4bootPlugin implements Plugin<Project> {
 					conf.setDescription("Local runtime classpath for pf4boot plugin development and diagnostics.");
 				});
 		pluginLocalRuntimeClasspath.extendsFrom(platformClasspath);
+		configureBundledProjectPlatformApiDependencies(project, bundle, bundleOnly, embed, pluginLocalRuntimeClasspath);
 
 		TaskProvider<Zip> pf4bootTask =
 				configurePf4bootTask(project, extension, bundle, bundleOnly, embed);
 
 		configurePf4bootElements(project, pf4bootTask);
 		configureDiagnosticTasks(project, extension, pf4bootTask, bundle, bundleOnly, embed, platformClasspath, pluginLocalRuntimeClasspath);
+	}
+
+	private void configureBundledProjectPlatformApiDependencies(
+			Project project,
+			Configuration bundle,
+			Configuration bundleOnly,
+			Configuration embed,
+			Configuration pluginLocalRuntimeClasspath
+	) {
+		project.afterEvaluate(evaluated -> {
+			Set<Project> bundledProjects = collectBundledProjects(bundle, bundleOnly, embed);
+			for (Project bundledProject : bundledProjects) {
+				if (bundledProject.getConfigurations().findByName(Pf4boot.PLATFORM_API_CONFIG_NAME) == null) {
+					continue;
+				}
+				Configuration bundledPlatformApi =
+						bundledProject.getConfigurations().getByName(Pf4boot.PLATFORM_API_CONFIG_NAME);
+				for (Dependency dependency : bundledPlatformApi.getDependencies()) {
+					pluginLocalRuntimeClasspath.getDependencies().add(dependency.copy());
+				}
+			}
+		});
+	}
+
+	private Set<Project> collectBundledProjects(Configuration... configurations) {
+		Set<Project> projects = new LinkedHashSet<>();
+		for (Configuration configuration : configurations) {
+			collectBundledProjects(configuration, projects);
+		}
+		return projects;
+	}
+
+	private void collectBundledProjects(Configuration configuration, Set<Project> projects) {
+		for (Dependency dependency : configuration.getAllDependencies()) {
+			if (dependency instanceof ProjectDependency) {
+				Project dependencyProject = ((ProjectDependency) dependency).getDependencyProject();
+				if (projects.add(dependencyProject)) {
+					Configuration runtimeClasspath =
+							dependencyProject.getConfigurations().findByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
+					if (runtimeClasspath != null) {
+						collectBundledProjects(runtimeClasspath, projects);
+					}
+				}
+			}
+		}
 	}
 
 	private Properties loadPluginProperties(Project project) {

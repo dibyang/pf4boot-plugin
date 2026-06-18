@@ -681,3 +681,80 @@ CHANGELOG 使用：
 3. 重复依赖默认 warning 还是 fail。
 4. 是否自动适配所有 `JavaExec`，还是只提供 `pluginLocalRuntimeClasspath` 让用户显式引用。
 5. platform API 是否需要支持从宿主项目导入，而不仅是当前项目声明。
+
+## 21. 1.6.0 设计补充：强化 `platformApi` 三重语义
+
+### 21.1 背景
+
+宿主或根项目通常已经引入 `org.slf4j:slf4j-api`。插件项目如果再用 `implementation`、`bundle` 或 `embed` 引入同一依赖，会把日志 API 打进插件包，可能造成宿主和插件类加载边界不一致，进而出现日志异常。
+
+但插件源码编译和本地直接运行 `main` 时仍需要 `org.slf4j.Logger`、`org.slf4j.LoggerFactory` 可见。因此，1.6.0 的优先目标不是从 `app-run` 反向导入平台依赖，而是把 `platformApi` 的契约明确为：
+
+```text
+编译可见 + 本地运行可见 + 不打包
+```
+
+### 21.2 设计决策
+
+| 问题 | 决策 |
+| --- | --- |
+| 插件是否依赖 `app-run` | 不建议。`app-run` 通常会消费插件 zip，插件反向依赖它容易形成构建循环。 |
+| `platformApi` 是否编译可见 | 是。插件源码应能直接 import 平台 API 类型。 |
+| `platformApi` 是否本地运行可见 | 是。通过 `pluginLocalRuntimeClasspath` 提供给本地 `JavaExec` / IDE。 |
+| `platformApi` 是否打包 | 否。默认不进入 pf4boot zip 的 `lib/`。 |
+| 是否从宿主项目自动导入 | 不做自动导入。后续如需要，只允许从明确的 `platform-api` / `platform-deps` 项目导入。 |
+| 非插件库项目的 `platformApi` | 同样遵循三重语义，并在被插件打包依赖时传递到插件本地运行 classpath，但不进入插件 zip。 |
+
+### 21.3 推荐用法
+
+```groovy
+dependencies {
+  platformApi "org.slf4j:slf4j-api:${slf4j_version}"
+}
+
+tasks.register('runPluginLocal', JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
+  mainClass = 'com.example.PluginLocalMain'
+}
+```
+
+### 21.4 验收要求
+
+- `platformApi` 中的 API 类型能通过 `compileJava`。
+- 非插件库项目的 `platformApi` 能通过 `compileJava`、`compileTestJava`，并进入该库 `runtimeClasspath` / `testRuntimeClasspath`。
+- `platformApi` 依赖能在 `pluginLocalRuntimeClasspath` 中解析。
+- 插件 `bundle project(":some-lib")` 时，`some-lib` 的 `platformApi` 能进入插件 `pluginLocalRuntimeClasspath`。
+- `platformApi` 依赖不出现在 pf4boot zip 的 `lib/` 中。
+- 文档明确不建议插件项目反向依赖包含插件包的 `app-run`。
+- 功能测试覆盖 project dependency 形式的 platform API，避免只覆盖外部 module 坐标。
+
+### 21.5 非插件库项目示例
+
+```groovy
+// apacheds-lib/build.gradle
+plugins {
+  id 'java-library'
+  id 'net.xdob.pf4boot'
+}
+
+dependencies {
+  platformApi "org.slf4j:slf4j-api:${slf4j_version}"
+}
+```
+
+```groovy
+// plugin-apacheds/build.gradle
+plugins {
+  id 'net.xdob.pf4boot-plugin'
+}
+
+dependencies {
+  bundle project(':apacheds-lib')
+}
+```
+
+期望行为：
+
+- `apacheds-lib` 编译、测试、本地 JavaExec 运行都能看到 `slf4j-api`。
+- `plugin-apacheds` 本地运行 classpath 能看到 `slf4j-api`。
+- `plugin-apacheds` zip 包含 `apacheds-lib.jar`，但不包含 `slf4j-api.jar`。

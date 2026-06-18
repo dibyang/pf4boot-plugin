@@ -681,3 +681,80 @@ The phased implementation plan has been split into dedicated tracking documents 
 3. Should duplicate dependencies warn or fail by default?
 4. Should all `JavaExec` tasks be adapted automatically, or should users explicitly use `pluginLocalRuntimeClasspath`?
 5. Should platform APIs be imported from a host project, not only declared in the current project?
+
+## 21. 1.6.0 Design Addendum: Strengthen the `platformApi` Contract
+
+### 21.1 Background
+
+The host or root project often already brings in `org.slf4j:slf4j-api`. If a plugin project adds the same dependency through `implementation`, `bundle`, or `embed`, the logging API can be packaged into the plugin ZIP and may conflict with the host/plugin class loading boundary.
+
+At the same time, plugin source code and local standalone `main` runs still need `org.slf4j.Logger` and `org.slf4j.LoggerFactory` to be visible. Therefore, the 1.6.0 priority is not to import platform dependencies from `app-run`, but to define the `platformApi` contract as:
+
+```text
+compile-visible + local-runtime-visible + not packaged
+```
+
+### 21.2 Decisions
+
+| Question | Decision |
+| --- | --- |
+| Should plugin projects depend on `app-run`? | Not recommended. `app-run` usually consumes plugin ZIPs, so reverse dependency from plugins can create build cycles. |
+| Is `platformApi` compile-visible? | Yes. Plugin source should be able to import platform API types directly. |
+| Is `platformApi` local-runtime-visible? | Yes. It is exposed through `pluginLocalRuntimeClasspath` for local `JavaExec` / IDE runs. |
+| Is `platformApi` packaged? | No. It is not added to pf4boot ZIP `lib/` by default. |
+| Should host project import be automatic? | No automatic import. If needed later, import only from explicit `platform-api` / `platform-deps` projects. |
+| `platformApi` in non-plugin library projects | It follows the same three-part contract and is propagated to plugin local runtime when the library is packaged, but not into the plugin ZIP. |
+
+### 21.3 Recommended Usage
+
+```groovy
+dependencies {
+  platformApi "org.slf4j:slf4j-api:${slf4j_version}"
+}
+
+tasks.register('runPluginLocal', JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath + configurations.pluginLocalRuntimeClasspath
+  mainClass = 'com.example.PluginLocalMain'
+}
+```
+
+### 21.4 Acceptance
+
+- API types declared through `platformApi` compile with `compileJava`.
+- `platformApi` in non-plugin library projects compiles with `compileJava` / `compileTestJava` and is present in that library's `runtimeClasspath` / `testRuntimeClasspath`.
+- `platformApi` dependencies resolve in `pluginLocalRuntimeClasspath`.
+- When a plugin declares `bundle project(":some-lib")`, `some-lib` platform APIs are available in the plugin `pluginLocalRuntimeClasspath`.
+- `platformApi` dependencies do not appear in pf4boot ZIP `lib/`.
+- Docs clearly warn against reverse dependency on an `app-run` project that packages plugins.
+- Functional tests cover project dependency style platform APIs, not only external module coordinates.
+
+### 21.5 Non-plugin Library Example
+
+```groovy
+// apacheds-lib/build.gradle
+plugins {
+  id 'java-library'
+  id 'net.xdob.pf4boot'
+}
+
+dependencies {
+  platformApi "org.slf4j:slf4j-api:${slf4j_version}"
+}
+```
+
+```groovy
+// plugin-apacheds/build.gradle
+plugins {
+  id 'net.xdob.pf4boot-plugin'
+}
+
+dependencies {
+  bundle project(':apacheds-lib')
+}
+```
+
+Expected behavior:
+
+- `apacheds-lib` can compile, test, and run local JavaExec tasks with `slf4j-api`.
+- `plugin-apacheds` local runtime classpath can see `slf4j-api`.
+- `plugin-apacheds` ZIP contains `apacheds-lib.jar`, but not `slf4j-api.jar`.

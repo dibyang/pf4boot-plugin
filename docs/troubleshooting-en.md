@@ -38,7 +38,7 @@ Common causes:
 - A dependency is incorrectly declared as `compileOnly` or excluded upstream.
 - The dependency should be provided by the host, but the local run does not start the full host.
 
-Recommended fix:
+Recommended fix. `platformApi` means compile-visible, local-runtime-visible, and not packaged.
 
 ```groovy
 dependencies {
@@ -58,6 +58,10 @@ Then run:
 ```
 
 `pluginLocalRuntimeClasspath` only makes platform APIs visible for local development runs. It does not change default ZIP packaging.
+
+Do not make plugin projects depend back on an `app-run` project just to obtain `slf4j-api`, because `app-run` usually consumes plugin ZIPs and reverse dependencies can create build cycles.
+
+If the missing class is used by a packaged library project such as `apacheds-lib`, apply `net.xdob.pf4boot` in that library and declare `platformApi` there. When the plugin packages the library through `bundle project(':apacheds-lib')`, the library platform APIs are added to plugin local runtime but not packaged into the ZIP.
 
 ## 3. Missing `plugin.properties`
 

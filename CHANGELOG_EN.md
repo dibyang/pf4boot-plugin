@@ -9,7 +9,12 @@ All release notes are recorded here. Please update this file before each release
 
 ## [Unreleased]
 
-No pending entries yet.
+### Added
+- Strengthened and tested the `platformApi` contract: compile-visible, local-runtime-visible, and not packaged.
+- `platformApi` in non-plugin library projects is now visible to library compilation, tests, and local runs; when the library is packaged by a plugin, its platform APIs are added to plugin local runtime but not to the plugin ZIP.
+
+### Changed
+- Documented that plugin projects should not depend back on an `app-run` project that packages plugins, avoiding build cycles.
 
 ## [1.5.0] - 2026-06-16
 

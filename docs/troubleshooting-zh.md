@@ -42,7 +42,7 @@ java.lang.NoClassDefFoundError: org/slf4j/LoggerFactory
 
 ### 推荐修复
 
-在插件项目中显式声明平台 API：
+在插件项目中显式声明平台 API。`platformApi` 的语义是：编译可见、本地运行可见、不打包。
 
 ```groovy
 dependencies {
@@ -68,6 +68,10 @@ tasks.register('runPluginLocal', JavaExec) {
 ### 设计边界
 
 `pluginLocalRuntimeClasspath` 只解决“本地开发运行可见性”，不会改变 zip 默认打包内容。平台 API 默认仍不进入 `lib/`，避免插件包和宿主平台重复携带同一依赖。
+
+不建议插件项目反向依赖包含插件包的 `app-run` 项目来获取 `slf4j-api`，因为 `app-run` 通常会消费插件 zip，反向依赖容易形成构建循环。
+
+如果缺失类来自被插件打包的库项目，例如 `apacheds-lib`，应在该库项目中应用 `net.xdob.pf4boot` 并声明 `platformApi`。插件通过 `bundle project(':apacheds-lib')` 打包库 jar 时，会自动把库项目的 `platformApi` 加入插件本地运行 classpath，但不会打进 zip。
 
 ## 3. `plugin.properties` 不存在
 

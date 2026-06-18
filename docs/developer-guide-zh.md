@@ -10,7 +10,7 @@
 - `pf4boot` 负责打包插件 zip（本地开发核心任务）。
 - `plugin.id` 与 `plugin.class` 是必填项。
 - 可通过 `plugin.properties` 或 `pf4bootPlugin` 扩展配置元数据。
-- `platformApi` 用于宿主提供但本地运行也需要可见的 API。
+- `platformApi` 用于宿主提供但插件编译和本地运行也需要可见的 API；默认不进入插件 zip。
 - 诊断任务默认不改变打包内容，不默认接入 `check`。
 
 ### 2. 配置方式
@@ -62,7 +62,11 @@ dependencies {
 - `bundle`：打包到 zip，包含传递依赖。
 - `bundleOnly`：只打包声明依赖本身，不带传递依赖。
 - `embed`：当前独立报告，默认仍作为打包依赖处理，保留未来策略扩展空间。
-- `platformApi`：宿主平台提供的 API，本地运行可见，默认不进入 zip。
+- `platformApi`：宿主平台提供的 API，编译可见、本地运行可见，默认不进入 zip。
+
+不要让插件项目反向依赖负责打安装包、并且会消费插件 zip 的 `app-run` 项目。推荐把平台 API 依赖显式放在 `platformApi`，或后续抽成独立的 `platform-api` / `platform-deps` 项目。
+
+非插件库项目也可以应用 `net.xdob.pf4boot` 并声明 `platformApi`。当插件通过 `bundle project(':apacheds-lib')` 打包该库时，库 jar 会进入插件 zip，库的 `platformApi` 会进入插件本地运行 classpath，但不会进入插件 zip。
 
 ### 4. 本地运行 classpath
 
@@ -122,7 +126,7 @@ pf4bootPlugin {
 ├─ 验证 build/libs/<project>-<version>.zip
 ├─ 验证 zip 中存在 plugin.properties 与 lib/<project>-<version>.jar
 ├─ 验证 bundle/bundleOnly/embed 行为与本次需求一致
-├─ 验证 platformApi 本地运行可见但不进入 zip lib/
+├─ 验证 platformApi 编译和本地运行可见但不进入 zip lib/
 ├─ 验证中文字段（description/requires/provider）不会乱码（UTF-8）
 └─ 验证必须字段（id/class/version）不为空
 ```

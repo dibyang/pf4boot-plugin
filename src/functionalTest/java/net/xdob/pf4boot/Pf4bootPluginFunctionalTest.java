@@ -366,6 +366,174 @@ public class Pf4bootPluginFunctionalTest {
 	}
 
 	@Test
+	public void shouldMakePlatformApiCompileVisibleLocalRuntimeVisibleAndNotPackaged() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldMakePlatformApiCompileVisibleLocalRuntimeVisibleAndNotPackaged");
+		File platformSourceDir = new File(projectDir, "slf4j-api/src/main/java/org/slf4j");
+		File pluginSourceDir = new File(projectDir, "plugin-demo/src/main/java/demo");
+		Files.createDirectories(platformSourceDir.toPath());
+		Files.createDirectories(pluginSourceDir.toPath());
+
+		writeString(new File(projectDir, "settings.gradle"),
+				"rootProject.name = 'pf4boot-platform-api-contract'\n" +
+						"include 'slf4j-api', 'plugin-demo'\n");
+		writeString(new File(projectDir, "build.gradle"), "");
+		writeString(new File(projectDir, "slf4j-api/build.gradle"),
+				"plugins { id 'java-library' }\n" +
+						"group = 'org.slf4j'\n" +
+						"version = '2.0.7'\n");
+		writeString(new File(platformSourceDir, "Logger.java"),
+				"package org.slf4j;\n" +
+						"public interface Logger {\n" +
+						"  void info(String message);\n" +
+						"}\n");
+		writeString(new File(platformSourceDir, "LoggerFactory.java"),
+				"package org.slf4j;\n" +
+						"public final class LoggerFactory {\n" +
+						"  private LoggerFactory() {}\n" +
+						"  public static Logger getLogger(Class<?> type) { return new NoopLogger(); }\n" +
+						"  private static final class NoopLogger implements Logger {\n" +
+						"    public void info(String message) {}\n" +
+						"  }\n" +
+						"}\n");
+		writeString(new File(projectDir, "plugin-demo/build.gradle"),
+				"plugins {\n" +
+						"  id 'java'\n" +
+						"  id 'net.xdob.pf4boot-plugin'\n" +
+						"}\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { platformApi project(':slf4j-api') }\n" +
+						"tasks.register('printLocalRuntime') {\n" +
+						"  dependsOn ':slf4j-api:jar'\n" +
+						"  doLast { println configurations.pluginLocalRuntimeClasspath.files.collect { it.name }.sort().join(',') }\n" +
+						"}\n");
+		writeString(new File(pluginSourceDir, "PluginMain.java"),
+				"package demo;\n" +
+						"import org.slf4j.Logger;\n" +
+						"import org.slf4j.LoggerFactory;\n" +
+						"public final class PluginMain {\n" +
+						"  private static final Logger LOG = LoggerFactory.getLogger(PluginMain.class);\n" +
+						"  public static void main(String[] args) { LOG.info(\"local\"); }\n" +
+						"}\n");
+		writePluginProperties(new File(projectDir, "plugin-demo"), "platform-api-contract-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments(":plugin-demo:compileJava", ":plugin-demo:printLocalRuntime", ":plugin-demo:pf4boot")
+				.withProjectDir(projectDir)
+				.build();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("slf4j-api-2.0.7.jar"));
+		File zipFile = new File(projectDir, "plugin-demo/build/libs/plugin-demo-1.0.0.zip");
+		List<String> zipEntries = listZipEntries(zipFile);
+		assertTrue(zipEntries.contains("lib/plugin-demo-1.0.0.jar"));
+		for (String entry : zipEntries) {
+			assertTrue(entry, !entry.contains("slf4j-api"));
+		}
+	}
+
+	@Test
+	public void shouldKeepBundledLibraryPlatformApiVisibleForLibraryAndPluginLocalRuntimeButNotPackaged() throws IOException {
+		File projectDir = new File("build/functionalTest/shouldKeepBundledLibraryPlatformApiVisibleForLibraryAndPluginLocalRuntimeButNotPackaged");
+		File platformSourceDir = new File(projectDir, "slf4j-api/src/main/java/org/slf4j");
+		File librarySourceDir = new File(projectDir, "apacheds-lib/src/main/java/demo/lib");
+		File libraryTestSourceDir = new File(projectDir, "apacheds-lib/src/test/java/demo/lib");
+		Files.createDirectories(platformSourceDir.toPath());
+		Files.createDirectories(librarySourceDir.toPath());
+		Files.createDirectories(libraryTestSourceDir.toPath());
+		Files.createDirectories(new File(projectDir, "plugin-demo").toPath());
+
+		writeString(new File(projectDir, "settings.gradle"),
+				"rootProject.name = 'pf4boot-library-platform-api-contract'\n" +
+						"include 'slf4j-api', 'apacheds-lib', 'plugin-demo'\n");
+		writeString(new File(projectDir, "build.gradle"), "");
+		writeString(new File(projectDir, "slf4j-api/build.gradle"),
+				"plugins { id 'java-library' }\n" +
+						"group = 'org.slf4j'\n" +
+						"version = '2.0.7'\n");
+		writeString(new File(platformSourceDir, "Logger.java"),
+				"package org.slf4j;\n" +
+						"public interface Logger {\n" +
+						"  void info(String message);\n" +
+						"}\n");
+		writeString(new File(platformSourceDir, "LoggerFactory.java"),
+				"package org.slf4j;\n" +
+						"public final class LoggerFactory {\n" +
+						"  private LoggerFactory() {}\n" +
+						"  public static Logger getLogger(Class<?> type) { return new NoopLogger(); }\n" +
+						"  private static final class NoopLogger implements Logger {\n" +
+						"    public void info(String message) {}\n" +
+						"  }\n" +
+						"}\n");
+		writeString(new File(projectDir, "apacheds-lib/build.gradle"),
+				"plugins {\n" +
+						"  id 'java-library'\n" +
+						"  id 'net.xdob.pf4boot'\n" +
+						"}\n" +
+						"group = 'demo'\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { platformApi project(':slf4j-api') }\n" +
+						"tasks.register('printRuntimeClasspaths') {\n" +
+						"  dependsOn ':slf4j-api:jar'\n" +
+						"  doLast {\n" +
+						"    println 'LIB_RUNTIME=' + configurations.runtimeClasspath.files.collect { it.name }.sort().join(',')\n" +
+						"    println 'LIB_TEST_RUNTIME=' + configurations.testRuntimeClasspath.files.collect { it.name }.sort().join(',')\n" +
+						"  }\n" +
+						"}\n");
+		writeString(new File(librarySourceDir, "LibraryMain.java"),
+				"package demo.lib;\n" +
+						"import org.slf4j.Logger;\n" +
+						"import org.slf4j.LoggerFactory;\n" +
+						"public final class LibraryMain {\n" +
+						"  private static final Logger LOG = LoggerFactory.getLogger(LibraryMain.class);\n" +
+						"  public static void use() { LOG.info(\"library\"); }\n" +
+						"}\n");
+		writeString(new File(libraryTestSourceDir, "LibraryMainTest.java"),
+				"package demo.lib;\n" +
+						"import org.slf4j.Logger;\n" +
+						"import org.slf4j.LoggerFactory;\n" +
+						"public final class LibraryMainTest {\n" +
+						"  private static final Logger LOG = LoggerFactory.getLogger(LibraryMainTest.class);\n" +
+						"  public void compileOnly() { LOG.info(\"test\"); }\n" +
+						"}\n");
+		writeString(new File(projectDir, "plugin-demo/build.gradle"),
+				"plugins {\n" +
+						"  id 'java'\n" +
+						"  id 'net.xdob.pf4boot-plugin'\n" +
+						"}\n" +
+						"version = '1.0.0'\n" +
+						"dependencies { bundle project(':apacheds-lib') }\n" +
+						"tasks.register('printPluginLocalRuntime') {\n" +
+						"  dependsOn ':slf4j-api:jar'\n" +
+						"  doLast { println 'PLUGIN_LOCAL_RUNTIME=' + configurations.pluginLocalRuntimeClasspath.files.collect { it.name }.sort().join(',') }\n" +
+						"}\n");
+		writePluginProperties(new File(projectDir, "plugin-demo"), "library-platform-api-plugin", "1.0.0");
+
+		BuildResult result = GradleRunner.create()
+				.forwardOutput()
+				.withPluginClasspath()
+				.withArguments(
+						":apacheds-lib:compileJava",
+						":apacheds-lib:compileTestJava",
+						":apacheds-lib:printRuntimeClasspaths",
+						":plugin-demo:printPluginLocalRuntime",
+						":plugin-demo:pf4boot"
+				)
+				.withProjectDir(projectDir)
+				.build();
+
+		assertTrue(result.getOutput(), result.getOutput().contains("LIB_RUNTIME=slf4j-api-2.0.7.jar"));
+		assertTrue(result.getOutput(), result.getOutput().contains("LIB_TEST_RUNTIME=slf4j-api-2.0.7.jar"));
+		assertTrue(result.getOutput(), result.getOutput().contains("PLUGIN_LOCAL_RUNTIME=slf4j-api-2.0.7.jar"));
+		File zipFile = new File(projectDir, "plugin-demo/build/libs/plugin-demo-1.0.0.zip");
+		List<String> zipEntries = listZipEntries(zipFile);
+		assertTrue(zipEntries.contains("lib/apacheds-lib-1.0.0.jar"));
+		for (String entry : zipEntries) {
+			assertTrue(entry, !entry.contains("slf4j-api"));
+		}
+	}
+
+	@Test
 	public void shouldNotPackagePlatformApiByDefault() throws IOException {
 		File projectDir = new File("build/functionalTest/shouldNotPackagePlatformApiByDefault");
 		Files.createDirectories(projectDir.toPath());

@@ -34,6 +34,12 @@ public class Pf4boot implements Plugin<Project> {
 
 		Configuration compileClasspath =
 				project.getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+		Configuration runtimeClasspath =
+				project.getConfigurations().getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
+		Configuration testCompileClasspath =
+				project.getConfigurations().getByName(JavaPlugin.TEST_COMPILE_CLASSPATH_CONFIGURATION_NAME);
+		Configuration testRuntimeClasspath =
+				project.getConfigurations().getByName(JavaPlugin.TEST_RUNTIME_CLASSPATH_CONFIGURATION_NAME);
 
 		Configuration platformApi =
 				project.getConfigurations().register(PLATFORM_API_CONFIG_NAME, conf -> {
@@ -55,6 +61,9 @@ public class Pf4boot implements Plugin<Project> {
 
 		platformClasspath.extendsFrom(platformApi);
 		compileClasspath.extendsFrom(platformApi);
+		runtimeClasspath.extendsFrom(platformApi);
+		testCompileClasspath.extendsFrom(platformApi);
+		testRuntimeClasspath.extendsFrom(platformApi);
 
 		Configuration plugin =
 				project.getConfigurations().register(PLUGIN_CONFIG_NAME, conf -> {

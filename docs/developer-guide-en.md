@@ -10,7 +10,7 @@ This is the full reference guide for local development. For quick setup, read [U
 - `pf4boot` is the ZIP packaging task used during local plugin development.
 - `plugin.id` and `plugin.class` are required.
 - Plugin metadata can come from `plugin.properties` or the `pf4bootPlugin` extension.
-- `platformApi` is for APIs provided by the host but also needed for local plugin execution.
+- `platformApi` is for APIs provided by the host but also needed for plugin compilation and local plugin execution; it is not packaged into the plugin ZIP by default.
 - Diagnostic tasks do not change packaging and are not wired into `check` by default.
 
 ### 2. Configuration options
@@ -62,7 +62,11 @@ dependencies {
 - `bundle`: packaged into the ZIP with transitive dependencies.
 - `bundleOnly`: packages only directly declared dependencies.
 - `embed`: reported separately; by default it is still treated as a packaged dependency and kept open for future strategy-specific behavior.
-- `platformApi`: host-provided APIs that are visible for local runtime but not packaged into the ZIP by default.
+- `platformApi`: host-provided APIs that are compile-visible and local-runtime-visible, but not packaged into the ZIP by default.
+
+Do not make plugin projects depend back on an `app-run` project that builds installers and consumes plugin ZIPs. Prefer explicit `platformApi` declarations, or later extract shared declarations into a dedicated `platform-api` / `platform-deps` project.
+
+Non-plugin library projects can also apply `net.xdob.pf4boot` and declare `platformApi`. When a plugin packages that library through `bundle project(':apacheds-lib')`, the library jar is added to the plugin ZIP, while the library's `platformApi` dependencies are added to plugin local runtime but not to the plugin ZIP.
 
 ### 4. Local runtime classpath
 
@@ -122,7 +126,7 @@ After tagging:
 ├─ verify build/libs/<project>-<version>.zip
 ├─ ensure zip contains plugin.properties and lib/<project>-<version>.jar
 ├─ verify bundle / bundleOnly / embed behavior matches the current need
-├─ verify platformApi is visible locally but not packaged under zip lib/
+├─ verify platformApi is compile-visible and visible locally but not packaged under zip lib/
 ├─ verify UTF-8 fields (description/requires/provider) are readable
 └─ ensure required keys (id/class/version) are not empty
 ```

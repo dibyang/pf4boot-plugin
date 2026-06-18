@@ -81,7 +81,9 @@ dependencies {
 - `bundle`: packages dependency and transitive dependencies.
 - `bundleOnly`: packages only directly declared dependencies.
 - `embed`: reported separately; by default it is still treated as a packaged dependency.
-- `platformApi`: host-provided APIs needed for local runtime, not packaged into the ZIP by default.
+- `platformApi`: host-provided APIs that are compile-visible and local-runtime-visible, but not packaged into the ZIP by default.
+
+Do not declare host-provided `slf4j-api` through `implementation`, `bundle`, or `embed` in plugin projects, because it may be packaged into the plugin ZIP. Also avoid reverse dependency on an `app-run` project that packages plugins; that can create build cycles.
 
 ### 5) Local JavaExec runtime
 
@@ -93,6 +95,33 @@ tasks.register('runPluginLocal', JavaExec) {
 ```
 
 The plugin does not auto-modify all `JavaExec` tasks. Users explicitly reference `pluginLocalRuntimeClasspath`.
+
+### 5.1 `platformApi` in non-plugin library projects
+
+If a plugin packages a library project, declare platform APIs in the library that actually uses them:
+
+```groovy
+// apacheds-lib/build.gradle
+plugins {
+  id 'java-library'
+  id 'net.xdob.pf4boot'
+}
+
+dependencies {
+  platformApi "org.slf4j:slf4j-api:${slf4j_version}"
+}
+```
+
+The plugin project only packages that library:
+
+```groovy
+// plugin-apacheds/build.gradle
+dependencies {
+  bundle project(':apacheds-lib')
+}
+```
+
+This makes `slf4j-api` visible to `apacheds-lib` compilation, tests, and local runs; also visible to plugin local runtime; but it is not packaged as `slf4j-api.jar` in the plugin ZIP.
 
 ### 6) Dependency diagnostics
 
@@ -135,7 +164,7 @@ Both tasks are read-only. They do not create tags, modify versions, or publish a
 ├─ plugin.id / plugin.class / plugin.version are as expected
 ├─ UTF-8 text fields (description/requires/provider) are not garbled
 ├─ bundle / bundleOnly / embed composition is expected
-└─ platformApi dependencies are visible locally but not packaged under zip lib/
+└─ platformApi dependencies are compile-visible and visible locally but not packaged under zip lib/
 ```
 
 If a build fails, start with the [Troubleshooting Guide](troubleshooting-en.md).

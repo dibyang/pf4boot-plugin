@@ -81,7 +81,9 @@ dependencies {
 - `bundle`：打包依赖及其传递依赖。
 - `bundleOnly`：只打包声明的第一层依赖。
 - `embed`：当前作为独立分组报告，默认仍按打包依赖处理。
-- `platformApi`：宿主平台提供、本地运行也需要可见的 API，默认不进入 zip。
+- `platformApi`：宿主平台提供的 API，编译可见、本地运行可见，默认不进入 zip。
+
+不要为了使用宿主已经提供的 `slf4j-api` 而在插件项目中声明 `implementation`、`bundle` 或 `embed`，否则依赖可能被打进插件包。也不建议插件项目反向依赖包含插件包的 `app-run`，这容易形成构建循环。
 
 ### 5) 本地 JavaExec 运行
 
@@ -93,6 +95,33 @@ tasks.register('runPluginLocal', JavaExec) {
 ```
 
 插件不会自动修改所有 `JavaExec`，需要用户显式引用 `pluginLocalRuntimeClasspath`。
+
+### 5.1 非插件库项目中的 `platformApi`
+
+如果插件依赖一个库项目，平台 API 应该声明在真正使用它的库项目里：
+
+```groovy
+// apacheds-lib/build.gradle
+plugins {
+  id 'java-library'
+  id 'net.xdob.pf4boot'
+}
+
+dependencies {
+  platformApi "org.slf4j:slf4j-api:${slf4j_version}"
+}
+```
+
+插件项目只打包该库：
+
+```groovy
+// plugin-apacheds/build.gradle
+dependencies {
+  bundle project(':apacheds-lib')
+}
+```
+
+这样 `apacheds-lib` 编译、测试、本地运行可见 `slf4j-api`；插件本地运行也可见；但插件 zip 不会包含 `slf4j-api.jar`。
 
 ### 6) 依赖诊断任务
 
@@ -135,7 +164,7 @@ pf4bootPlugin {
 ├─ plugin.id / plugin.class / plugin.version 与预期一致
 ├─ 中文配置项（description/requires/provider）不乱码（UTF-8）
 ├─ bundle/bundleOnly/embed 与本地需求一致
-└─ platformApi 依赖本地运行可见，但不进入 zip lib/
+└─ platformApi 依赖编译和本地运行可见，但不进入 zip lib/
 ```
 
 出现失败时先对照 [故障排查手册（中文）](troubleshooting-zh.md)。
