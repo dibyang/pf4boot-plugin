@@ -1,0 +1,99 @@
+name: Bug report
+description: Report a reproducible pf4boot-plugin bug.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve pf4boot-plugin.
+
+        Please do not include security-sensitive details here. If the issue may expose credentials, arbitrary file access, privilege bypass, exploitable deserialization, or remotely triggerable denial of service, use the security reporting guidance in `SECURITY.md`.
+  - type: input
+    id: plugin-version
+    attributes:
+      label: pf4boot-plugin version
+      description: Exact version or commit, for example `1.7.0`.
+      placeholder: "1.7.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - net.xdob.pf4boot
+        - net.xdob.pf4boot-plugin
+        - pf4boot task / packaging
+        - platformApi / local runtime classpath
+        - dependency diagnostics
+        - publication / release tasks
+        - documentation
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: usage-path
+    attributes:
+      label: Usage path
+      description: Describe whether this is direct Gradle plugin usage, a multi-project build, a local JavaExec run, Maven/Plugin Portal publishing, or another integration layer.
+      placeholder: "Example: plugin-demo uses bundle project(':apacheds-lib'), and apacheds-lib declares platformApi ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include the failing task name and error summary.
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproducer
+      description: Provide the smallest Gradle build, sample project, or test case that reproduces the issue.
+      placeholder: |
+        settings.gradle:
+        build.gradle:
+        command:
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and stack trace
+      description: Paste relevant Gradle output, stack trace, dependency report, or zip entry list. Use text, not screenshots, when possible.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Runtime environment
+      description: Include OS, JDK version, Gradle version, dependency coordinates, and whether the build uses Maven Central, Plugin Portal, or mavenLocal.
+      placeholder: |
+        OS:
+        JDK:
+        Gradle:
+        pf4boot-plugin:
+        Dependencies:
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked the latest released version or explained why I cannot upgrade.
+          required: true
+        - label: I included a minimal reproducer or enough project structure to reproduce the issue.
+          required: true
+        - label: This report does not contain security-sensitive exploit details or secrets.
+          required: true
